@@ -1,0 +1,118 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793362825989,
+      "tag": "0000_gatepass_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793362838756,
+      "tag": "0001_photos_storage_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793363982730,
+      "tag": "0002_tighten_function_execute",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793366195676,
+      "tag": "0003_org_emergency_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793367327961,
+      "tag": "0004_org_trial_and_paid_until",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793382189109,
+      "tag": "0005_paystack_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793453817318,
+      "tag": "0006_org_classes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793614168565,
+      "tag": "0007_bus_crew_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793614233807,
+      "tag": "0008_transport_module_and_strict_passes",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793615988937,
+      "tag": "0009_bus_pupils_and_ride_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793617275014,
+      "tag": "0010_bus_last_seen_places",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793620372708,
+      "tag": "0011_transport_plan_attendance_and_org_column_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793716509080,
+      "tag": "0012_bus_login_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793716863626,
+      "tag": "0013_branches_plans_bus_login_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794293812893,
+      "tag": "0014_atomic_payment_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794423326933,
+      "tag": "0015_branch_bus_gate_security_hardening",
+      "breakpoints": true
+    }
+  ]
+}

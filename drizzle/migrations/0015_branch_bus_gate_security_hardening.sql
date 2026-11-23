@@ -1,0 +1,18 @@
+CREATE OR REPLACE FUNCTION public.in_my_branch(_branch_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS (SELECT 1 FROM public.profiles p JOIN public.branches b ON b.id=_branch_id WHERE p.id=auth.uid() AND b.org_id=p.org_id AND (p.branch_id IS NULL OR p.branch_id=b.id)) $$;
+REVOKE ALL ON FUNCTION public.in_my_branch(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.in_my_branch(uuid) TO authenticated, service_role;
+CREATE OR REPLACE FUNCTION public.photo_in_scope(_name text) RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$ DECLARE part text := split_part(_name,'/',2); b uuid; o uuid; BEGIN IF part !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN RETURN false; END IF; SELECT branch_id, org_id INTO b,o FROM public.members WHERE id=part::uuid; RETURN o=public.get_user_org_id(auth.uid()) AND split_part(_name,'/',1)=o::text AND public.staff_scope(b); END $$;
+REVOKE INSERT, UPDATE, DELETE ON public.bus_crew FROM authenticated;
+COMMENT ON TABLE public.bus_crew IS 'DEPRECATED: bus login and named crew are managed on public.buses';
+CREATE OR REPLACE FUNCTION public.is_bus_crew(_user_id uuid,_bus_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS (SELECT 1 FROM public.buses b JOIN public.profiles p ON p.id=_user_id WHERE b.id=_bus_id AND b.login_user_id=_user_id AND b.login_active AND p.org_id=b.org_id AND p.branch_id=b.branch_id AND public.has_role(_user_id,'bus')) $$;
+ALTER POLICY "Crew update bus trips" ON public.bus_trips USING (org_id=public.get_user_org_id(auth.uid()) AND public.is_bus_crew(auth.uid(),bus_id)) WITH CHECK (org_id=public.get_user_org_id(auth.uid()) AND public.is_bus_crew(auth.uid(),bus_id));
+REVOKE INSERT, UPDATE ON public.bus_trips FROM authenticated;
+GRANT INSERT (id,org_id,bus_id,direction,status,started_by,started_at,ended_at,location_paused) ON public.bus_trips TO authenticated;
+GRANT UPDATE (status,started_at,ended_at,location_paused) ON public.bus_trips TO authenticated;
+ALTER POLICY "Staff record gate logs" ON public.gate_logs WITH CHECK (scanned_by_guard_id=auth.uid() AND org_id=public.get_user_org_id(auth.uid()) AND public.staff_scope(branch_id) AND guardian_id IS NOT NULL AND (public.has_role(auth.uid(),'guard') OR public.has_role(auth.uid(),'admin')));
+REVOKE INSERT ON public.gate_logs FROM authenticated;
+GRANT INSERT (org_id,member_id,guardian_id,scanned_by_guard_id,action_type,"timestamp",client_id) ON public.gate_logs TO authenticated;
+REVOKE UPDATE ON public.profiles FROM authenticated;
+GRANT UPDATE (full_name,phone) ON public.profiles TO authenticated;
+ALTER POLICY "Users update own profile" ON public.profiles USING (id=auth.uid() AND public.mfa_ok()) WITH CHECK (id=auth.uid() AND public.mfa_ok());
+REVOKE EXECUTE ON FUNCTION public.bus_trip_points_after_insert() FROM PUBLIC,anon,authenticated;

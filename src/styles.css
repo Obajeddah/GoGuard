@@ -1,0 +1,333 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * GatePass design system — "Gatehouse"
+ * Warm sandstone paper, deep gate-green ink, signal amber for attention,
+ * clear green/coral for check-in / check-out. All colors are oklch tokens.
+ */
+
+@theme inline {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-signal: var(--signal);
+  --color-signal-foreground: var(--signal-foreground);
+  --color-checkin: var(--checkin);
+  --color-checkin-foreground: var(--checkin-foreground);
+  --color-checkout: var(--checkout);
+  --color-checkout-foreground: var(--checkout-foreground);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted: var(--ink-muted);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-pass: var(--shadow-pass-value);
+  --shadow-soft: var(--shadow-soft-value);
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: oklch(0.968 0.014 82);
+  --foreground: oklch(0.22 0.035 165);
+  --card: oklch(0.99 0.006 85);
+  --card-foreground: oklch(0.22 0.035 165);
+  --popover: oklch(0.99 0.006 85);
+  --popover-foreground: oklch(0.22 0.035 165);
+  --primary: oklch(0.34 0.07 162);
+  --primary-foreground: oklch(0.97 0.014 85);
+  --secondary: oklch(0.925 0.022 80);
+  --secondary-foreground: oklch(0.26 0.045 165);
+  --muted: oklch(0.93 0.016 80);
+  --muted-foreground: oklch(0.47 0.03 160);
+  --accent: oklch(0.9 0.04 150);
+  --accent-foreground: oklch(0.26 0.06 162);
+  --destructive: oklch(0.58 0.2 28);
+  --destructive-foreground: oklch(0.98 0.01 85);
+  --border: oklch(0.87 0.02 80);
+  --input: oklch(0.85 0.022 80);
+  --ring: oklch(0.55 0.1 160);
+
+  --signal: oklch(0.82 0.15 78);
+  --signal-foreground: oklch(0.24 0.05 60);
+  --checkin: oklch(0.6 0.15 152);
+  --checkin-foreground: oklch(0.99 0.01 150);
+  --checkout: oklch(0.64 0.17 38);
+  --checkout-foreground: oklch(0.99 0.01 60);
+  --ink: oklch(0.2 0.035 168);
+  --ink-foreground: oklch(0.96 0.015 85);
+  --ink-muted: oklch(0.72 0.03 160);
+
+  --gradient-ink: linear-gradient(160deg, oklch(0.27 0.055 165), oklch(0.18 0.03 175));
+  --gradient-signal: linear-gradient(135deg, oklch(0.86 0.14 85), oklch(0.76 0.16 65));
+  --shadow-pass-value: 0 24px 48px -24px color-mix(in oklab, var(--ink) 45%, transparent),
+    0 2px 6px -2px color-mix(in oklab, var(--ink) 20%, transparent);
+  --shadow-soft-value: 0 10px 30px -18px color-mix(in oklab, var(--ink) 40%, transparent);
+
+  --chart-1: oklch(0.6 0.15 152);
+  --chart-2: oklch(0.64 0.17 38);
+  --chart-3: oklch(0.82 0.15 78);
+  --chart-4: oklch(0.34 0.07 162);
+  --chart-5: oklch(0.55 0.08 220);
+  --sidebar: oklch(0.2 0.035 168);
+  --sidebar-foreground: oklch(0.96 0.015 85);
+  --sidebar-primary: oklch(0.82 0.15 78);
+  --sidebar-primary-foreground: oklch(0.24 0.05 60);
+  --sidebar-accent: oklch(0.28 0.04 165);
+  --sidebar-accent-foreground: oklch(0.96 0.015 85);
+  --sidebar-border: oklch(0.3 0.03 165);
+  --sidebar-ring: oklch(0.82 0.15 78);
+}
+
+.dark {
+  --background: oklch(0.17 0.03 170);
+  --foreground: oklch(0.95 0.015 85);
+  --card: oklch(0.22 0.035 168);
+  --card-foreground: oklch(0.95 0.015 85);
+  --popover: oklch(0.22 0.035 168);
+  --popover-foreground: oklch(0.95 0.015 85);
+  --primary: oklch(0.82 0.15 78);
+  --primary-foreground: oklch(0.22 0.05 60);
+  --secondary: oklch(0.27 0.035 168);
+  --secondary-foreground: oklch(0.95 0.015 85);
+  --muted: oklch(0.26 0.03 168);
+  --muted-foreground: oklch(0.72 0.03 160);
+  --accent: oklch(0.3 0.05 162);
+  --accent-foreground: oklch(0.95 0.015 85);
+  --destructive: oklch(0.65 0.2 28);
+  --destructive-foreground: oklch(0.98 0.01 85);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.82 0.15 78);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility bg-gradient-ink {
+  background-image: var(--gradient-ink);
+}
+
+@utility bg-gradient-signal {
+  background-image: var(--gradient-signal);
+}
+
+/* Ticket-style pass with perforated edge */
+@utility ticket-perforation {
+  background-image: radial-gradient(circle at 10px 50%, var(--background) 9px, transparent 10px);
+  background-size: 20px 20px;
+  background-repeat: repeat-x;
+}
+
+@utility grid-lines {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@keyframes gate-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes gate-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes scan-line {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(220px);
+  }
+}
+
+@utility animate-gate-pop {
+  animation: gate-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@utility animate-gate-ring {
+  animation: gate-ring 0.9s ease-out both;
+}
+
+@utility animate-scan-line {
+  animation: scan-line 2.4s ease-in-out infinite;
+}
+
+/* Glass surfaces (home page, bus app, fleet telemetry) */
+:root {
+  --glass-bg: color-mix(in oklab, var(--card) 58%, transparent);
+  --glass-bg-strong: color-mix(in oklab, var(--card) 78%, transparent);
+  --glass-border: color-mix(in oklab, oklch(1 0 0) 65%, transparent);
+  --glass-shadow: 0 1px 0 0 color-mix(in oklab, oklch(1 0 0) 70%, transparent) inset,
+    0 24px 60px -30px color-mix(in oklab, var(--ink) 45%, transparent);
+  --aurora-1: oklch(0.82 0.15 78 / 0.55);
+  --aurora-2: oklch(0.6 0.15 152 / 0.4);
+  --aurora-3: oklch(0.34 0.07 162 / 0.35);
+}
+.dark {
+  --glass-bg: color-mix(in oklab, var(--card) 55%, transparent);
+  --glass-bg-strong: color-mix(in oklab, var(--card) 80%, transparent);
+  --glass-border: oklch(1 0 0 / 12%);
+  --glass-shadow: 0 1px 0 0 oklch(1 0 0 / 8%) inset, 0 24px 60px -30px oklch(0 0 0 / 70%);
+}
+
+@utility glass {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+}
+
+@utility glass-strong {
+  background-color: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+}
+
+@utility bg-aurora {
+  background-image:
+    radial-gradient(40rem 28rem at 12% 8%, var(--aurora-1), transparent 70%),
+    radial-gradient(36rem 30rem at 92% 18%, var(--aurora-2), transparent 70%),
+    radial-gradient(44rem 30rem at 60% 100%, var(--aurora-3), transparent 70%);
+}
+
+@utility text-gradient-ink {
+  background-image: linear-gradient(120deg, var(--foreground), color-mix(in oklab, var(--primary) 80%, var(--foreground)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@utility animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--checkin) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@utility animate-pulse-dot {
+  animation: pulse-dot 1.6s ease-out infinite;
+}
+
+/* Bus markers on the fleet map */
+.fleet-pin {
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: 9999px;
+  padding: 0.35rem 0.7rem;
+  font: 600 12px/1 var(--font-sans);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--signal) 70%, transparent), 0 8px 18px -6px oklch(0 0 0 / 0.4);
+}
+.fleet-pin--stale {
+  background: var(--muted-foreground);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--muted) 80%, transparent);
+}

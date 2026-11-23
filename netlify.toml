@@ -1,0 +1,23 @@
+[build]
+  command = "bun run build"
+  publish = "dist/client"
+
+[build.environment]
+  NODE_VERSION = "22.17.0"
+  BUN_VERSION = "1.4.4"
+
+# Token-bearing public pages must never be indexed.
+[[headers]]
+  for = "/pass/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/bus/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/register/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
