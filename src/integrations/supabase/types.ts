@@ -410,11 +410,36 @@ export type Database = {
           },
         ]
       }
+      email_deliveries: {
+        Row: {
+          email: string
+          id: string
+          sent_at: string
+          source_id: string
+          source_table: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          sent_at?: string
+          source_id: string
+          source_table: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          sent_at?: string
+          source_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       gate_logs: {
         Row: {
           action_type: Database["public"]["Enums"]["gate_action"]
           branch_id: string | null
           client_id: string | null
+          emailed_at: string | null
           guard_name: string | null
           guardian_id: string | null
           id: string
@@ -429,6 +454,7 @@ export type Database = {
           action_type: Database["public"]["Enums"]["gate_action"]
           branch_id?: string | null
           client_id?: string | null
+          emailed_at?: string | null
           guard_name?: string | null
           guardian_id?: string | null
           id?: string
@@ -443,6 +469,7 @@ export type Database = {
           action_type?: Database["public"]["Enums"]["gate_action"]
           branch_id?: string | null
           client_id?: string | null
+          emailed_at?: string | null
           guard_name?: string | null
           guardian_id?: string | null
           id?: string
@@ -910,18 +937,21 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          plan: string
           used_at: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
+          plan?: string
           used_at?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          plan?: string
           used_at?: string | null
         }
         Relationships: []

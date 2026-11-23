@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { signupMetadata, captchaConfigured } from "@/lib/signup-rules";
+import { signupMetadata, signupPlan, captchaConfigured } from "@/lib/signup-rules";
 import { readAll } from "@/lib/pagination";
 
 describe("school signup protection", () => {
@@ -8,13 +8,21 @@ describe("school signup protection", () => {
     expect(captchaConfigured(undefined, "secret")).toBe(false);
     expect(captchaConfigured("site", "secret")).toBe(true);
   });
-  it("passes the security ticket to account creation", () => {
-    expect(signupMetadata("issued-ticket", "basic").signup_ticket).toBe("issued-ticket");
+  it("passes the security ticket and chosen plan to account creation", () => {
+    expect(signupMetadata("issued-ticket", "standard")).toEqual({
+      signup_ticket: "issued-ticket",
+      plan: "standard",
+    });
   });
-  it("gives the trial only to Basic Gate", () => {
-    expect(signupMetadata("ticket", "basic").trial).toBe(true);
-    expect(signupMetadata("ticket", "standard").trial).toBe(false);
-    expect(signupMetadata("ticket", "group").trial).toBe(false);
+  it("never puts a client-controlled trial flag in auth metadata", () => {
+    expect(signupMetadata("ticket", "basic")).not.toHaveProperty("trial");
+    expect(signupMetadata("ticket", "group")).not.toHaveProperty("trial");
+  });
+  it("falls back to Basic Gate for unknown plans", () => {
+    expect(signupPlan("group")).toBe("group");
+    expect(signupPlan("standard")).toBe("standard");
+    expect(signupPlan("free-forever")).toBe("basic");
+    expect(signupPlan(undefined)).toBe("basic");
   });
 });
 describe("complete exports", () => {

@@ -30,6 +30,7 @@ import { Route as BusTokenRouteImport } from './routes/bus.$token'
 import { Route as OnboardGuardRouteImport } from './routes/onboard/guard'
 import { Route as PassHashRouteImport } from './routes/pass.$hash'
 import { Route as RegisterTokenRouteImport } from './routes/register.$token'
+import { Route as ApiCronSendEmailsRouteImport } from './routes/api/cron/send-emails'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -137,6 +138,11 @@ const RegisterTokenRoute = RegisterTokenRouteImport.update({
   path: '/register/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronSendEmailsRoute = ApiCronSendEmailsRouteImport.update({
+  id: '/api/cron/send-emails',
+  path: '/api/cron/send-emails',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaystackWebhookRoute =
   ApiPublicPaystackWebhookRouteImport.update({
     id: '/api/public/paystack-webhook',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/onboard/guard': typeof OnboardGuardRoute
   '/pass/$hash': typeof PassHashRoute
   '/register/$token': typeof RegisterTokenRoute
+  '/api/cron/send-emails': typeof ApiCronSendEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/onboard/guard': typeof OnboardGuardRoute
   '/pass/$hash': typeof PassHashRoute
   '/register/$token': typeof RegisterTokenRoute
+  '/api/cron/send-emails': typeof ApiCronSendEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
 }
 export interface FileRoutesById {
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/onboard/guard': typeof OnboardGuardRoute
   '/pass/$hash': typeof PassHashRoute
   '/register/$token': typeof RegisterTokenRoute
+  '/api/cron/send-emails': typeof ApiCronSendEmailsRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
 }
 export interface FileRouteTypes {
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/onboard/guard'
     | '/pass/$hash'
     | '/register/$token'
+    | '/api/cron/send-emails'
     | '/api/public/paystack-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/onboard/guard'
     | '/pass/$hash'
     | '/register/$token'
+    | '/api/cron/send-emails'
     | '/api/public/paystack-webhook'
   id:
     | '__root__'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/onboard/guard'
     | '/pass/$hash'
     | '/register/$token'
+    | '/api/cron/send-emails'
     | '/api/public/paystack-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -299,6 +311,7 @@ export interface RootRouteChildren {
   OnboardGuardRoute: typeof OnboardGuardRoute
   PassHashRoute: typeof PassHashRoute
   RegisterTokenRoute: typeof RegisterTokenRoute
+  ApiCronSendEmailsRoute: typeof ApiCronSendEmailsRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
 }
 
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/send-emails': {
+      id: '/api/cron/send-emails'
+      path: '/api/cron/send-emails'
+      fullPath: '/api/cron/send-emails'
+      preLoaderRoute: typeof ApiCronSendEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/paystack-webhook': {
       id: '/api/public/paystack-webhook'
       path: '/api/public/paystack-webhook'
@@ -503,6 +523,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardGuardRoute: OnboardGuardRoute,
   PassHashRoute: PassHashRoute,
   RegisterTokenRoute: RegisterTokenRoute,
+  ApiCronSendEmailsRoute: ApiCronSendEmailsRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
 }
 export const routeTree = rootRouteImport

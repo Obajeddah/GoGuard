@@ -1,17 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 
-const eventSchema = z.object({
-  event: z.string(),
-  data: z
-    .object({
-      reference: z.string().max(100),
-      amount: z.number().int(),
-      currency: z.string().max(5),
-      status: z.string().optional(),
-    })
-    .passthrough(),
-});
+import { parsePaystackEvent } from "@/lib/paystack-webhook";
 
 export const Route = createFileRoute("/api/public/paystack-webhook")({
   server: {
@@ -26,19 +15,21 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
         const expected = await paystackSignature(raw, key);
         if (!safeEqual(given, expected)) return new Response("Invalid signature", { status: 401 });
 
-        let parsed;
-        try {
-          parsed = eventSchema.safeParse(JSON.parse(raw));
-        } catch {
-          return new Response("Bad request", { status: 400 });
-        }
-        if (!parsed.success) return new Response("ok");
+        const parsed = parsePaystackEvent(raw);
+        if (parsed.kind === "bad") return new Response("Bad request", { status: 400 });
+        if (parsed.kind === "ignore") return new Response("ok");
 
-        if (parsed.data.event === "charge.success") {
-          const { reference, amount, currency } = parsed.data.data;
-          await settlePayment(reference, { amountKobo: amount, currency });
+        try {
+          const result = await settlePayment(parsed.charge.reference, {
+            amountKobo: parsed.charge.amount,
+            currency: parsed.charge.currency,
+          });
+          if (result === "mismatch") console.error("[paystack] webhook amount/currency mismatch", parsed.charge.reference);
+          return new Response("ok");
+        } catch (error) {
+          console.error("[paystack] webhook settlement failed", error);
+          return new Response("Try again", { status: 500 });
         }
-        return new Response("ok");
       },
     },
   },

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, MailCheck } from "lucide-react";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
 import { checkOrgEmail, getSignupConfig } from "@/lib/signup.functions";
-import { signupMetadata } from "@/lib/signup-rules";
+import { signupMetadata, signupPlan } from "@/lib/signup-rules";
 import { SignupCaptcha } from "@/components/signup-captcha";
 import { orgEmailPolicyError } from "@/lib/email-domain";
 import { termsFor, type OrgType } from "@/lib/org-terms";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/signup")({
+  validateSearch: z.object({ plan: z.string().optional().catch(undefined) }),
   head: () => ({
     meta: [
       { title: "Register your school — GoGuard" },
@@ -53,7 +54,9 @@ const TYPE: OrgType = "school";
 function SignupPage() {
   const check = useServerFn(checkOrgEmail);
   const config = useQuery({ queryKey: ["signup-config"], queryFn: () => getSignupConfig() });
-  const [plan, setPlan] = useState<PlanId>("basic");
+  const { plan: planParam } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const [plan, setPlan] = useState<PlanId>(() => signupPlan(planParam));
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(0);
   const type = TYPE;
@@ -78,7 +81,7 @@ function SignupPage() {
 
     setBusy(true);
     try {
-      const res = await check({ data: { email: parsed.data.email, type, captchaToken } });
+      const res = await check({ data: { email: parsed.data.email, type, plan, captchaToken } });
       if (!res.ok) {
         setErrors({ email: res.error });
         return;
@@ -147,7 +150,16 @@ function SignupPage() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-5" noValidate>
         <Field label="Plan">
-          <select aria-label="Plan" value={plan} onChange={(e) => setPlan(e.target.value as PlanId)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+          <select
+            aria-label="Plan"
+            value={plan}
+            onChange={(e) => {
+              const next = signupPlan(e.target.value);
+              setPlan(next);
+              void navigate({ search: { plan: next }, replace: true });
+            }}
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          >
             {PLAN_IDS.map((id) => <option key={id} value={id}>{PLANS[id].label} · {formatNaira(PLANS[id].amountNaira)}/month</option>)}
           </select>
           <p className="mt-1 text-sm text-muted-foreground">{plan === "basic" ? `${TRIAL_DAYS}-day free trial. No payment needed.` : "No free trial. Payment required to activate this plan."}</p>

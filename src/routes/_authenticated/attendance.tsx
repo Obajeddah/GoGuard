@@ -124,7 +124,10 @@ function AttendancePage() {
     const term = q.trim().toLowerCase();
     return classes
       .filter((c) => classFilter === "all" || keyOf(c.label) === classFilter)
-      .map((c) => ({ ...c, students: term ? c.students.filter((s) => s.name.toLowerCase().includes(term)) : c.students }))
+      .map((c) => {
+        const students = term ? c.students.filter((s) => s.name.toLowerCase().includes(term)) : c.students;
+        return { ...c, students, rate: overallRate(students) };
+      })
       .filter((c) => !term || c.students.length);
   }, [classes, classFilter, q]);
 
@@ -141,9 +144,10 @@ function AttendancePage() {
     setBusy(true);
     try {
       const { attendanceSheets, downloadAttendanceWorkbook } = await import("@/lib/attendance-excel");
-      const sheets = attendanceSheets({ orgName: branch ? `${org.name} — ${branch.name}` : org.name, from, to, days, classes });
+      const sheets = attendanceSheets({ orgName: branch ? `${org.name} — ${branch.name}` : org.name, from, to, days, classes: visible });
       const slug = org.name.replace(/\W+/g, "-").toLowerCase();
-      await downloadAttendanceWorkbook(sheets, `attendance-${slug}-${from}-to-${to}.xlsx`);
+      const filter = classFilter === "all" ? "" : `-${classFilter.replace(/\W+/g, "-").toLowerCase()}`;
+      await downloadAttendanceWorkbook(sheets, `attendance-${slug}${filter}-${from}-to-${to}.xlsx`);
     } catch {
       toast.error("Couldn't create the Excel file. Please try again.");
     }
@@ -160,8 +164,11 @@ function AttendancePage() {
         {canDownload && (
           <div className="flex flex-col items-end gap-1">
             <Button variant="signal" onClick={download} disabled={busy || loading || !days.length || !exportOpen}>
-              {busy ? <Loader2 className="animate-spin" /> : <Download />} Download Excel (all classes)
+              {busy ? <Loader2 className="animate-spin" /> : <Download />} Download Excel (visible)
             </Button>
+            <p className="text-xs text-muted-foreground">
+              {classFilter === "all" && !q.trim() ? "Includes all classes and students." : "Matches the class and search filters above."}
+            </p>
             {!exportOpen && <p className="text-xs text-muted-foreground">Downloads resume once you subscribe.</p>}
           </div>
         )}

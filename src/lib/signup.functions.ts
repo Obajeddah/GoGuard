@@ -2,11 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { emailDomain, orgEmailPolicyError } from "./email-domain";
-import { captchaConfigured } from "./signup-rules";
+import { captchaConfigured, signupPlan } from "./signup-rules";
 
 const schema = z.object({
   email: z.string().trim().email().max(255),
   type: z.literal("school"),
+  plan: z.string().max(20).optional().default("basic"),
   captchaToken: z.string().max(4096).optional().default(""),
 });
 
@@ -69,7 +70,7 @@ export const checkOrgEmail = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: ticket, error } = await supabaseAdmin
       .from("signup_tickets")
-      .insert({ email: data.email.toLowerCase() })
+      .insert({ email: data.email.toLowerCase(), plan: signupPlan(data.plan) })
       .select("id")
       .single();
     if (error || !ticket) return { ok: false, error: "Something went wrong. Please try again." };

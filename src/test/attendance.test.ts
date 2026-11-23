@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { attendanceByClass, schoolDate, schoolDays, studentAttendance } from "@/lib/attendance";
+import { attendanceSheets } from "@/lib/attendance-excel";
 
 const members = [
   { id: "a", full_name: "Ada Obi", identifier_code: "Primary 1" },
@@ -50,5 +51,16 @@ describe("Automatic attendance", () => {
     expect(groups.map((g) => g.label)).toEqual(["Primary 1", "Primary 2", "Primary 3"]);
     expect(groups[2]!.students).toEqual([]);
     expect(groups[0]!.rate).toBe(70);
+  });
+  it("exports only the classes passed to the workbook", () => {
+    const groups = attendanceByClass(rows, ["Primary 1", "Primary 2"]);
+    const sheets = attendanceSheets({
+      orgName: "Greenfield Academy",
+      from: "2026-11-02",
+      to: "2026-11-06",
+      days: week,
+      classes: [groups[0]!],
+    });
+    expect(sheets.map((s) => s.sheet)).toEqual(["Summary", "Primary 1"]);
   });
 });
