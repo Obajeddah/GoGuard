@@ -17,6 +17,11 @@ dist-ssr
 .netlify
 *.local
 
+# Environment / secrets — keep the template, ignore everything else
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
