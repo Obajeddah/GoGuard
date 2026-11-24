@@ -21,3 +21,17 @@
   for = "/register/*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
+
+# Baseline hardening for every response. CSP ships in report-only mode first:
+# it cannot break the app, and violations show up in the browser console until
+# we have confirmed the allowlist against a real page load.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), geolocation=(self), microphone=(), payment=(), usb=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Content-Security-Policy-Report-Only = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://nominatim.openstreetmap.org https://api.paystack.co; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:"
