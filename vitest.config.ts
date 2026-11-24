@@ -9,6 +9,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // zod ships a CJS build whose named exports Vitest's SSR loader can miss,
+    // which makes `import { z } from "zod"` resolve to undefined. Inline it so
+    // Vite transforms the ESM build instead.
+    server: { deps: { inline: ["zod"] } },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
