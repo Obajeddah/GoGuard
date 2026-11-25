@@ -17,16 +17,22 @@ import {
  * 64-char tracking code is the credential (same model as guardian passes).
  */
 export const getBusTracking = createServerFn({ method: "GET" })
-  .validator((input: unknown) => z.object({ token: z.string().regex(/^[a-f0-9]{64}$/i) }).parse(input))
+  .validator((input: unknown) =>
+    z.object({ token: z.string().regex(/^[a-f0-9]{64}$/i) }).parse(input),
+  )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: m } = await supabaseAdmin
       .from("members")
-      .select("id, org_id, full_name, identifier_code, uses_bus, bus_id, primary_email, branch:branches(name), org:organizations(name, emergency_phone)")
+      .select(
+        "id, org_id, full_name, identifier_code, uses_bus, bus_id, primary_email, branch:branches(name), org:organizations(name, emergency_phone)",
+      )
       .eq("bus_track_token", data.token.toLowerCase())
       .maybeSingle();
     if (!m || !m.uses_bus || !m.org) return null;
-    const { data: transport } = await supabaseAdmin.rpc("org_transport_active", { _org_id: m.org_id });
+    const { data: transport } = await supabaseAdmin.rpc("org_transport_active", {
+      _org_id: m.org_id,
+    });
     if (!transport) return null;
 
     // Other bus children registered by the same parent email at this school (any branch).
@@ -63,7 +69,9 @@ export const getBusTracking = createServerFn({ method: "GET" })
         .maybeSingle(),
       supabaseAdmin
         .from("bus_trips")
-        .select("id, direction, started_at, current_lat, current_lng, current_speed, last_ping_at, location_paused, location_requested_at")
+        .select(
+          "id, direction, started_at, current_lat, current_lng, current_speed, last_ping_at, location_paused, location_requested_at",
+        )
         .eq("bus_id", m.bus_id)
         .eq("status", "in_transit")
         .maybeSingle(),
@@ -83,13 +91,16 @@ export const getBusTracking = createServerFn({ method: "GET" })
     const last = logs?.[0] ?? null;
     const state: PupilState = pupilStates(
       [m.id],
-      last ? [{ member_id: m.id, status: last.status as BusLogStatus, timestamp: last.timestamp }] : [],
+      last
+        ? [{ member_id: m.id, status: last.status as BusLogStatus, timestamp: last.timestamp }]
+        : [],
     ).get(m.id)!;
 
     const onBoard = !!trip && parentSeesLocation(true, state);
     // Opening "Where is my child?" asks the bus device for one fresh location
     // (even if the driver paused it), at most once a minute per ride.
-    const wantsFresh = onBoard && (trip!.location_paused || isStale(trip!.last_ping_at, Date.now()));
+    const wantsFresh =
+      onBoard && (trip!.location_paused || isStale(trip!.last_ping_at, Date.now()));
     if (wantsFresh) {
       const cutoff = new Date(Date.now() - 60_000).toISOString();
       await supabaseAdmin
@@ -99,7 +110,9 @@ export const getBusTracking = createServerFn({ method: "GET" })
         .or(`location_requested_at.is.null,location_requested_at.lt.${cutoff}`);
     }
     const showLocation = onBoard && trip!.current_lat != null && trip!.current_lng != null;
-    const place = showLocation ? await areaName(supabaseAdmin, trip!.current_lat!, trip!.current_lng!) : null;
+    const place = showLocation
+      ? await areaName(supabaseAdmin, trip!.current_lat!, trip!.current_lng!)
+      : null;
     return {
       ...base,
       bus: bus
@@ -111,11 +124,18 @@ export const getBusTracking = createServerFn({ method: "GET" })
             attendant: bus.attendant_name,
           }
         : null,
-      ride: trip ? { direction: trip.direction as TripDirection, startedAt: trip.started_at } : null,
+      ride: trip
+        ? { direction: trip.direction as TripDirection, startedAt: trip.started_at }
+        : null,
       child: last ? { state, at: last.timestamp, guardianName: last.guardian_name } : null,
       // Last-seen area only (no map, no coordinates), and only while this child is on board.
       lastSeen: showLocation
-        ? { place, at: trip!.last_ping_at, stale: isStale(trip!.last_ping_at, Date.now()), updating: wantsFresh }
+        ? {
+            place,
+            at: trip!.last_ping_at,
+            stale: isStale(trip!.last_ping_at, Date.now()),
+            updating: wantsFresh,
+          }
         : null,
     };
   });
@@ -139,7 +159,10 @@ async function areaName(admin: Admin, lat: number, lng: number): Promise<string 
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&addressdetails=1&lat=${latKey}&lon=${lngKey}`,
-      { headers: { "User-Agent": "GatePass/1.0 (school bus last-seen)", "Accept-Language": "en" }, signal: AbortSignal.timeout(4000) },
+      {
+        headers: { "User-Agent": "GatePass/1.0 (school bus last-seen)", "Accept-Language": "en" },
+        signal: AbortSignal.timeout(4000),
+      },
     );
     if (!res.ok) return null;
     const body = (await res.json()) as { address?: Record<string, string> };
@@ -147,6 +170,8 @@ async function areaName(admin: Admin, lat: number, lng: number): Promise<string 
   } catch {
     return null;
   }
-  await admin.from("place_names").upsert({ lat_key: latKey, lng_key: lngKey, name }, { onConflict: "lat_key,lng_key" });
+  await admin
+    .from("place_names")
+    .upsert({ lat_key: latKey, lng_key: lngKey, name }, { onConflict: "lat_key,lng_key" });
   return name;
 }

@@ -18,9 +18,7 @@ const chargeSchema = z.object({
 export type ChargeSuccess = z.infer<typeof chargeSchema>;
 
 export type ParsedWebhook =
-  | { kind: "bad" }
-  | { kind: "ignore" }
-  | { kind: "charge"; charge: ChargeSuccess };
+  { kind: "bad" } | { kind: "ignore" } | { kind: "charge"; charge: ChargeSuccess };
 
 /** Parses a verified Paystack body without ever settling a payment. */
 export function parsePaystackEvent(raw: string): ParsedWebhook {

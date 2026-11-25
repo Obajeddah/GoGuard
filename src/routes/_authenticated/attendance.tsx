@@ -28,9 +28,15 @@ export const Route = createFileRoute("/_authenticated/attendance")({
   head: () => ({
     meta: [
       { title: "Attendance — GoGuard" },
-      { name: "description", content: "Class attendance counted automatically from gate scans and bus rides." },
+      {
+        name: "description",
+        content: "Class attendance counted automatically from gate scans and bus rides.",
+      },
       { property: "og:title", content: "Attendance — GoGuard" },
-      { property: "og:description", content: "Class attendance counted automatically from gate scans and bus rides." },
+      {
+        property: "og:description",
+        content: "Class attendance counted automatically from gate scans and bus rides.",
+      },
     ],
   }),
   component: () => (
@@ -82,11 +88,14 @@ function AttendancePage() {
     queryFn: async () => {
       const all: { id: string; full_name: string; identifier_code: string | null }[] = [];
       for (let i = 0; ; i += PAGE) {
-        const { data, error } = await inBranch(supabase
-          .from("members")
-          .select("id, full_name, identifier_code")
-          .eq("org_id", org.id).order("id"), branchId)
-          .range(i, i + PAGE - 1);
+        const { data, error } = await inBranch(
+          supabase
+            .from("members")
+            .select("id, full_name, identifier_code")
+            .eq("org_id", org.id)
+            .order("id"),
+          branchId,
+        ).range(i, i + PAGE - 1);
         if (error) throw error;
         all.push(...(data ?? []));
         if (!data || data.length < PAGE) break;
@@ -117,7 +126,10 @@ function AttendancePage() {
     () => studentAttendance(members.data ?? [], marks.data ?? [], days),
     [members.data, marks.data, days],
   );
-  const classes = useMemo(() => attendanceByClass(students, org.classes ?? []), [students, org.classes]);
+  const classes = useMemo(
+    () => attendanceByClass(students, org.classes ?? []),
+    [students, org.classes],
+  );
   const keyOf = (label: string | null) => label ?? "__none__";
 
   const visible = useMemo(() => {
@@ -125,14 +137,18 @@ function AttendancePage() {
     return classes
       .filter((c) => classFilter === "all" || keyOf(c.label) === classFilter)
       .map((c) => {
-        const students = term ? c.students.filter((s) => s.name.toLowerCase().includes(term)) : c.students;
+        const students = term
+          ? c.students.filter((s) => s.name.toLowerCase().includes(term))
+          : c.students;
         return { ...c, students, rate: overallRate(students) };
       })
       .filter((c) => !term || c.students.length);
   }, [classes, classFilter, q]);
 
   const todayInRange = days.includes(today);
-  const presentToday = todayInRange ? students.filter((s) => s.marks[today] !== "absent").length : null;
+  const presentToday = todayInRange
+    ? students.filter((s) => s.marks[today] !== "absent").length
+    : null;
   const rate = overallRate(students);
   const loading = members.isLoading || marks.isLoading;
   const canDownload = can(!!me?.isAdmin, "export_reports");
@@ -143,10 +159,18 @@ function AttendancePage() {
     if (!exportOpen) return;
     setBusy(true);
     try {
-      const { attendanceSheets, downloadAttendanceWorkbook } = await import("@/lib/attendance-excel");
-      const sheets = attendanceSheets({ orgName: branch ? `${org.name} — ${branch.name}` : org.name, from, to, days, classes: visible });
+      const { attendanceSheets, downloadAttendanceWorkbook } =
+        await import("@/lib/attendance-excel");
+      const sheets = attendanceSheets({
+        orgName: branch ? `${org.name} — ${branch.name}` : org.name,
+        from,
+        to,
+        days,
+        classes: visible,
+      });
       const slug = org.name.replace(/\W+/g, "-").toLowerCase();
-      const filter = classFilter === "all" ? "" : `-${classFilter.replace(/\W+/g, "-").toLowerCase()}`;
+      const filter =
+        classFilter === "all" ? "" : `-${classFilter.replace(/\W+/g, "-").toLowerCase()}`;
       await downloadAttendanceWorkbook(sheets, `attendance-${slug}${filter}-${from}-to-${to}.xlsx`);
     } catch {
       toast.error("Couldn't create the Excel file. Please try again.");
@@ -159,17 +183,27 @@ function AttendancePage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">Attendance</h1>
-          <p className="text-muted-foreground">Counted automatically from gate scans and bus rides.</p>
+          <p className="text-muted-foreground">
+            Counted automatically from gate scans and bus rides.
+          </p>
         </div>
         {canDownload && (
           <div className="flex flex-col items-end gap-1">
-            <Button variant="signal" onClick={download} disabled={busy || loading || !days.length || !exportOpen}>
+            <Button
+              variant="signal"
+              onClick={download}
+              disabled={busy || loading || !days.length || !exportOpen}
+            >
               {busy ? <Loader2 className="animate-spin" /> : <Download />} Download Excel (visible)
             </Button>
             <p className="text-xs text-muted-foreground">
-              {classFilter === "all" && !q.trim() ? "Includes all classes and students." : "Matches the class and search filters above."}
+              {classFilter === "all" && !q.trim()
+                ? "Includes all classes and students."
+                : "Matches the class and search filters above."}
             </p>
-            {!exportOpen && <p className="text-xs text-muted-foreground">Downloads resume once you subscribe.</p>}
+            {!exportOpen && (
+              <p className="text-xs text-muted-foreground">Downloads resume once you subscribe.</p>
+            )}
           </div>
         )}
       </div>
@@ -186,7 +220,9 @@ function AttendancePage() {
               }}
               className={cn(
                 "rounded-full border px-3 py-1 text-sm font-medium transition",
-                from === p.from && to === p.to ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground",
+                from === p.from && to === p.to
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "text-muted-foreground",
               )}
             >
               {p.label}
@@ -195,17 +231,41 @@ function AttendancePage() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="att-from">From</Label>
-          <Input id="att-from" type="date" value={from} max={to} min={shift(to, -366)} onChange={(e) => e.target.value && setFrom(e.target.value)} />
+          <Input
+            id="att-from"
+            type="date"
+            value={from}
+            max={to}
+            min={shift(to, -366)}
+            onChange={(e) => e.target.value && setFrom(e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="att-to">To</Label>
-          <Input id="att-to" type="date" value={to} min={from} max={shift(from, 366)} onChange={(e) => e.target.value && setTo(e.target.value)} />
+          <Input
+            id="att-to"
+            type="date"
+            value={to}
+            min={from}
+            max={shift(from, 366)}
+            onChange={(e) => e.target.value && setTo(e.target.value)}
+          />
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat icon={CalendarCheck} label="School days" value={String(days.length)} hint="Monday to Friday" />
-        <Stat icon={Users} label="Average attendance" value={rate === null ? "—" : `${rate}%`} hint={`${students.length} students`} />
+        <Stat
+          icon={CalendarCheck}
+          label="School days"
+          value={String(days.length)}
+          hint="Monday to Friday"
+        />
+        <Stat
+          icon={Users}
+          label="Average attendance"
+          value={rate === null ? "—" : `${rate}%`}
+          hint={`${students.length} students`}
+        />
         <Stat
           icon={Bus}
           label="Present today"
@@ -230,14 +290,25 @@ function AttendancePage() {
         </select>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a student" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search a student"
+            className="pl-9"
+          />
         </div>
       </div>
 
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-checkin" /> Present at the gate</span>
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-primary" /> Present by bus</span>
-        <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-checkout/25" /> Absent</span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-checkin" /> Present at the gate
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-primary" /> Present by bus
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm bg-checkout/25" /> Absent
+        </span>
       </div>
 
       {loading ? (
@@ -245,9 +316,13 @@ function AttendancePage() {
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : marks.isError ? (
-        <p className="rounded-2xl border bg-card py-12 text-center text-muted-foreground">Couldn't load attendance. Please refresh.</p>
+        <p className="rounded-2xl border bg-card py-12 text-center text-muted-foreground">
+          Couldn't load attendance. Please refresh.
+        </p>
       ) : visible.length === 0 ? (
-        <p className="rounded-2xl border bg-card py-12 text-center text-muted-foreground">No students found.</p>
+        <p className="rounded-2xl border bg-card py-12 text-center text-muted-foreground">
+          No students found.
+        </p>
       ) : (
         <div className="space-y-4">
           {visible.map((c) => (
@@ -259,10 +334,14 @@ function AttendancePage() {
                     {c.students.length} {c.students.length === 1 ? "student" : "students"}
                   </p>
                 </div>
-                <span className="font-display text-xl font-bold">{c.rate === null ? "—" : `${c.rate}%`}</span>
+                <span className="font-display text-xl font-bold">
+                  {c.rate === null ? "—" : `${c.rate}%`}
+                </span>
               </header>
               {c.students.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No students registered in this class yet.</p>
+                <p className="px-4 py-6 text-sm text-muted-foreground">
+                  No students registered in this class yet.
+                </p>
               ) : (
                 <ul className="divide-y">
                   {c.students.map((s) => (
@@ -270,12 +349,17 @@ function AttendancePage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{s.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {s.present} present{s.byBus ? ` (${s.byBus} by bus)` : ""} · {s.absent} absent
+                          {s.present} present{s.byBus ? ` (${s.byBus} by bus)` : ""} · {s.absent}{" "}
+                          absent
                         </p>
                       </div>
                       <div className="hidden gap-1 md:flex" aria-hidden>
                         {recent.map((d) => (
-                          <span key={d} title={d} className={cn("size-3 rounded-sm", MARK_STYLE[s.marks[d] ?? "absent"])} />
+                          <span
+                            key={d}
+                            title={d}
+                            className={cn("size-3 rounded-sm", MARK_STYLE[s.marks[d] ?? "absent"])}
+                          />
                         ))}
                       </div>
                       <span
@@ -298,7 +382,17 @@ function AttendancePage() {
   );
 }
 
-function Stat({ icon: Icon, label, value, hint }: { icon: typeof Users; label: string; value: string; hint: string }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string;
+  hint: string;
+}) {
   return (
     <div className="rounded-2xl border bg-card p-4">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">

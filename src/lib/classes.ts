@@ -36,8 +36,11 @@ export function normaliseClasses(list: string[]): string[] {
     seen.add(k);
     out.push(c);
   }
-  const presetIndex = (c: string) => PRESET_CLASSES.findIndex((p) => p.toLowerCase() === c.toLowerCase());
-  const presets = out.filter((c) => presetIndex(c) >= 0).sort((a, b) => presetIndex(a) - presetIndex(b));
+  const presetIndex = (c: string) =>
+    PRESET_CLASSES.findIndex((p) => p.toLowerCase() === c.toLowerCase());
+  const presets = out
+    .filter((c) => presetIndex(c) >= 0)
+    .sort((a, b) => presetIndex(a) - presetIndex(b));
   const custom = out.filter((c) => presetIndex(c) < 0);
   return [...presets, ...custom].slice(0, MAX_CLASSES);
 }
@@ -110,7 +113,10 @@ export function classGroups<T extends { identifier_code: string | null }>(
       continue;
     }
     const k = c.toLowerCase();
-    const entry = byClass.get(k) ?? { label: schoolClasses.find((s) => s.toLowerCase() === k) ?? c, members: [] };
+    const entry = byClass.get(k) ?? {
+      label: schoolClasses.find((s) => s.toLowerCase() === k) ?? c,
+      members: [],
+    };
     entry.members.push(m);
     byClass.set(k, entry);
   }
@@ -122,7 +128,9 @@ export function classGroups<T extends { identifier_code: string | null }>(
       byClass.delete(s.toLowerCase());
     }
   }
-  const rest = [...byClass.values()].sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+  const rest = [...byClass.values()].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { numeric: true }),
+  );
   ordered.push(...rest);
   if (none.length) ordered.push({ label: null, members: none });
   return ordered;

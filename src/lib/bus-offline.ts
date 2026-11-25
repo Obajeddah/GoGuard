@@ -9,10 +9,29 @@ export type QueueItem =
   | {
       kind: "trip_start";
       id: string;
-      trip: { id: string; org_id: string; bus_id: string; direction: TripDirection; started_by: string; started_at: string };
+      trip: {
+        id: string;
+        org_id: string;
+        bus_id: string;
+        direction: TripDirection;
+        started_by: string;
+        started_at: string;
+      };
     }
   | { kind: "location_pause"; id: string; tripId: string; paused: boolean }
-  | { kind: "emergency"; id: string; emergency: { client_id: string; org_id: string; bus_id: string; trip_id: string | null; raised_by: string; lat: number | null; lng: number | null } }
+  | {
+      kind: "emergency";
+      id: string;
+      emergency: {
+        client_id: string;
+        org_id: string;
+        bus_id: string;
+        trip_id: string | null;
+        raised_by: string;
+        lat: number | null;
+        lng: number | null;
+      };
+    }
   | { kind: "trip_end"; id: string; tripId: string; ended_at: string }
   | {
       kind: "log";
@@ -57,7 +76,14 @@ export function enqueue(queue: QueueItem[], item: QueueItem, max = 500): QueueIt
 
 /** Items in the order they must be sent: ride starts first, ride ends last. */
 export function sendOrder(queue: QueueItem[]): QueueItem[] {
-  const rank = { trip_start: 0, emergency: 1, location_pause: 1, log: 1, point: 1, trip_end: 2 } as const;
+  const rank = {
+    trip_start: 0,
+    emergency: 1,
+    location_pause: 1,
+    log: 1,
+    point: 1,
+    trip_end: 2,
+  } as const;
   return [...queue].sort((a, b) => rank[a.kind] - rank[b.kind]);
 }
 

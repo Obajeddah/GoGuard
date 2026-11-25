@@ -6,7 +6,8 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { paystackKey, paystackSignature, safeEqual, settlePayment } = await import("@/lib/paystack.server");
+        const { paystackKey, paystackSignature, safeEqual, settlePayment } =
+          await import("@/lib/paystack.server");
         const key = paystackKey();
         if (!key) return new Response("Not configured", { status: 503 });
 
@@ -24,7 +25,8 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
             amountKobo: parsed.charge.amount,
             currency: parsed.charge.currency,
           });
-          if (result === "mismatch") console.error("[paystack] webhook amount/currency mismatch", parsed.charge.reference);
+          if (result === "mismatch")
+            console.error("[paystack] webhook amount/currency mismatch", parsed.charge.reference);
           return new Response("ok");
         } catch (error) {
           console.error("[paystack] webhook settlement failed", error);

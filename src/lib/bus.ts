@@ -28,7 +28,8 @@ export function pupilStates(memberIds: string[], logs: BusLogLike[]): Map<string
   const latest = new Map<string, BusLogLike>();
   for (const log of logs) {
     const prev = latest.get(log.member_id);
-    if (!prev || new Date(log.timestamp).getTime() >= new Date(prev.timestamp).getTime()) latest.set(log.member_id, log);
+    if (!prev || new Date(log.timestamp).getTime() >= new Date(prev.timestamp).getTime())
+      latest.set(log.member_id, log);
   }
   const out = new Map<string, PupilState>();
   for (const id of memberIds) {
@@ -57,7 +58,13 @@ export function tripProgress(states: Map<string, PupilState>): TripProgress {
     else dropped++;
   }
   const total = states.size;
-  return { total, waiting, onboard, dropped, percent: total ? Math.round((dropped / total) * 100) : 0 };
+  return {
+    total,
+    waiting,
+    onboard,
+    dropped,
+    percent: total ? Math.round((dropped / total) * 100) : 0,
+  };
 }
 
 /** The one-tap action for a pupil in this state, or null when they're done. */
@@ -73,7 +80,11 @@ export function needsGuardianCheck(direction: TripDirection, action: BusLogStatu
 }
 
 /** Whether to send a location point now. Pupil changes always send one. */
-export function shouldSendPoint(lastSentAt: number | null, now: number, reason: "tick" | "pupil"): boolean {
+export function shouldSendPoint(
+  lastSentAt: number | null,
+  now: number,
+  reason: "tick" | "pupil",
+): boolean {
   if (reason === "pupil") return true;
   return lastSentAt === null || now - lastSentAt >= POINT_INTERVAL_MS;
 }
@@ -110,15 +121,29 @@ export const placeKey = (n: number) => Math.round(n * 1000) / 1000;
 
 /** A short area name ("Egbe, Ikotun") from a reverse-geocoded address. */
 type Address = Partial<
-  Record<"suburb" | "neighbourhood" | "quarter" | "hamlet" | "town" | "city_district" | "village" | "city" | "county", string>
+  Record<
+    | "suburb"
+    | "neighbourhood"
+    | "quarter"
+    | "hamlet"
+    | "town"
+    | "city_district"
+    | "village"
+    | "city"
+    | "county",
+    string
+  >
 >;
 
 export function placeLabel(address: Address | null | undefined): string | null {
   if (!address) return null;
   const local = address.suburb ?? address.neighbourhood ?? address.quarter ?? address.hamlet;
-  const wider = address.town ?? address.city_district ?? address.village ?? address.city ?? address.county;
+  const wider =
+    address.town ?? address.city_district ?? address.village ?? address.city ?? address.county;
   const parts = [local, wider].filter((p): p is string => !!p?.trim());
-  const unique = parts.filter((p, i) => parts.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i);
+  const unique = parts.filter(
+    (p, i) => parts.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i,
+  );
   return unique.length ? unique.join(", ") : null;
 }
 
@@ -144,7 +169,9 @@ export interface BusPupilLike {
 }
 
 /** Bus pupils split into those still waiting for the school to pick a bus, and those per bus. */
-export function busPupilGroups<T extends BusPupilLike>(members: T[]): { needsBus: T[]; byBus: Map<string, T[]> } {
+export function busPupilGroups<T extends BusPupilLike>(
+  members: T[],
+): { needsBus: T[]; byBus: Map<string, T[]> } {
   const needsBus: T[] = [];
   const byBus = new Map<string, T[]>();
   for (const m of members) {

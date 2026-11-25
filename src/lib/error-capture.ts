@@ -1,6 +1,8 @@
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 
+import { redactText, redactValue } from "./redact";
+
 let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
@@ -28,7 +30,8 @@ export function describeError(error: unknown): string {
     parts.push(`${label}${current.stack ?? `${current.name}: ${current.message}`}${status}`);
     current = current.cause;
   }
-  return parts.join("\n").slice(0, DESCRIPTION_LENGTH_LIMIT);
+  // Redact before truncating: slicing first could leave half a token behind.
+  return redactText(parts.join("\n")).slice(0, DESCRIPTION_LENGTH_LIMIT);
 }
 
 function describeStatus(error: Error): string {
@@ -49,13 +52,28 @@ function isErrorLike(value: unknown): value is Error {
   return value instanceof Error;
 }
 
+/**
+ * Log arguments arrive from every layer. Strings and plain objects can carry a
+ * guardian's email or a bearer token, so they are redacted before the line is
+ * written; anything else (Response, stream, DOM node) is passed through intact.
+ */
+function redactLogArgument(value: unknown): unknown {
+  if (typeof value === "string") return redactText(value);
+  if (value === null || typeof value !== "object") return value;
+  const proto = Object.getPrototypeOf(value) as object | null;
+  if (Array.isArray(value) || proto === Object.prototype || proto === null) {
+    return redactValue(value);
+  }
+  return value;
+}
+
 // Wrap console.error so errors logged by any layer — including h3's internal
 // unhandled-error logging, which this file cannot hook directly — are both
 // recorded for consumeLastCapturedError and expanded before serialization.
 const originalConsoleError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
   const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
+    if (!isErrorLike(arg)) return redactLogArgument(arg);
     record(arg);
     return describeError(arg);
   });

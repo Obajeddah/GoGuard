@@ -334,8 +334,11 @@ function BusConsole({
     (q) => q.kind === "trip_end" && q.tripId === (localTrip?.id ?? serverTrip.data?.id),
   );
   const trip: LocalTrip | null = pendingEnd ? null : (serverTrip.data ?? localTrip ?? null);
-  const pendingPause = queue.filter((q) => q.kind === "location_pause" && q.tripId === trip?.id).at(-1);
-  const paused = pendingPause?.kind === "location_pause" ? pendingPause.paused : !!trip?.location_paused;
+  const pendingPause = queue
+    .filter((q) => q.kind === "location_pause" && q.tripId === trip?.id)
+    .at(-1);
+  const paused =
+    pendingPause?.kind === "location_pause" ? pendingPause.paused : !!trip?.location_paused;
 
   const manifest = useQuery({
     queryKey: ["bus-app", "manifest", bus.id],
@@ -424,9 +427,14 @@ function BusConsole({
         let error: { code?: string; message: string } | null = null;
         if (!canOperate && item.kind !== "trip_end") continue;
         if (item.kind === "location_pause") {
-          ({ error } = await supabase.from("bus_trips").update({ location_paused: item.paused }).eq("id", item.tripId));
+          ({ error } = await supabase
+            .from("bus_trips")
+            .update({ location_paused: item.paused })
+            .eq("id", item.tripId));
         } else if (item.kind === "emergency") {
-          ({ error } = await supabase.from("bus_emergencies").upsert(item.emergency, { onConflict: "client_id", ignoreDuplicates: true }));
+          ({ error } = await supabase
+            .from("bus_emergencies")
+            .upsert(item.emergency, { onConflict: "client_id", ignoreDuplicates: true }));
         } else if (item.kind === "trip_start") {
           ({ error } = await supabase
             .from("bus_trips")
@@ -435,9 +443,7 @@ function BusConsole({
               { onConflict: "id", ignoreDuplicates: true },
             ));
           if (error?.code === "23505") {
-            toast.message(
-              "A ride is already running on this bus. Switching to it.",
-            );
+            toast.message("A ride is already running on this bus. Switching to it.");
             dropTrip(item.trip.id);
           }
         } else if (item.kind === "trip_end") {
@@ -547,9 +553,17 @@ function BusConsole({
     if (!canOperate || !trip || !requested || !("geolocation" in navigator)) return;
     const key = `gp_bus_request_${userId}_${trip.id}`;
     if (handledRequests.current.has(requested)) return;
-    try { if (localStorage.getItem(key) === requested) return; } catch { /* storage blocked */ }
+    try {
+      if (localStorage.getItem(key) === requested) return;
+    } catch {
+      /* storage blocked */
+    }
     handledRequests.current.add(requested);
-    try { localStorage.setItem(key, requested); } catch { /* storage blocked */ }
+    try {
+      localStorage.setItem(key, requested);
+    } catch {
+      /* storage blocked */
+    }
     if (Date.parse(requested) <= (lastPointRef.current ?? 0)) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => sendPoint("request", pos),
@@ -562,10 +576,19 @@ function BusConsole({
     if (!canOperate) return false;
     const position = await quickPosition(8_000);
     const id = newId();
-    push({ kind: "emergency", id, emergency: {
-      client_id: id, org_id: orgId, bus_id: bus.id, trip_id: trip?.id ?? null,
-      raised_by: userId, lat: position?.coords.latitude ?? null, lng: position?.coords.longitude ?? null,
-    } });
+    push({
+      kind: "emergency",
+      id,
+      emergency: {
+        client_id: id,
+        org_id: orgId,
+        bus_id: bus.id,
+        trip_id: trip?.id ?? null,
+        raised_by: userId,
+        lat: position?.coords.latitude ?? null,
+        lng: position?.coords.longitude ?? null,
+      },
+    });
     void flush();
     return true;
   }
@@ -701,7 +724,11 @@ function BusConsole({
         }
       />
 
-      {isAdmin && <p className="mt-3 text-sm text-muted-foreground">Watching Bus {bus.bus_number}. Only the bus login shares location.</p>}
+      {isAdmin && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Watching Bus {bus.bus_number}. Only the bus login shares location.
+        </p>
+      )}
       {canOperate && <EmergencyButton onFire={raiseEmergency} />}
       {/* Bus header */}
       <header className="glass-strong mt-3 rounded-[2rem] p-5">
@@ -728,10 +755,20 @@ function BusConsole({
 
         {trip ? (
           <>
-            {canOperate && <Button variant="outline" size="sm" className="mt-3" aria-pressed={paused} onClick={() => {
-              push({ kind: "location_pause", id: newId(), tripId: trip.id, paused: !paused });
-              void flush();
-            }}>{paused ? "Paused" : "Location on"}</Button>}
+            {canOperate && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                aria-pressed={paused}
+                onClick={() => {
+                  push({ kind: "location_pause", id: newId(), tripId: trip.id, paused: !paused });
+                  void flush();
+                }}
+              >
+                {paused ? "Paused" : "Location on"}
+              </Button>
+            )}
             <div className="mt-5">
               <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
                 <span>
@@ -823,7 +860,9 @@ function BusConsole({
               {pupils.length} {pupils.length === 1 ? "pupil" : "pupils"} on this bus
             </p>
           </>
-        ) : <p className="mt-4 text-sm text-muted-foreground">No ride running.</p>}
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">No ride running.</p>
+        )}
       </header>
 
       {trip && gpsError && (
@@ -866,7 +905,8 @@ function BusConsole({
                 {confirmAll ? (
                   <div className="rounded-2xl bg-checkout/15 p-4">
                     <p className="font-semibold">
-                      Drop all {onboard.length} {onboard.length === 1 ? "pupil" : "pupils"} at school?
+                      Drop all {onboard.length} {onboard.length === 1 ? "pupil" : "pupils"} at
+                      school?
                     </p>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Button variant="outline" onClick={() => setConfirmAll(false)}>
@@ -1233,11 +1273,20 @@ function HandoverSheet({
 
 function quickPosition(timeout: number): Promise<GeolocationPosition | null> {
   return new Promise((resolve) => {
-    if (!("geolocation" in navigator)) { resolve(null); return; }
+    if (!("geolocation" in navigator)) {
+      resolve(null);
+      return;
+    }
     const timer = setTimeout(() => resolve(null), timeout);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { clearTimeout(timer); resolve(pos); },
-      () => { clearTimeout(timer); resolve(null); },
+      (pos) => {
+        clearTimeout(timer);
+        resolve(pos);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
       { enableHighAccuracy: true, timeout, maximumAge: 0 },
     );
   });
@@ -1251,7 +1300,10 @@ function EmergencyButton({ onFire }: { onFire: () => Promise<boolean> }) {
   const [state, setState] = useState<"ready" | "sending" | "alerted">("ready");
   const [fill, setFill] = useState(0);
   useEffect(() => {
-    if (!holding) { setFill(0); return; }
+    if (!holding) {
+      setFill(0);
+      return;
+    }
     const start = Date.now();
     const interval = setInterval(() => setFill(Math.min(100, (Date.now() - start) / 10)), 25);
     return () => clearInterval(interval);
@@ -1261,10 +1313,13 @@ function EmergencyButton({ onFire }: { onFire: () => Promise<boolean> }) {
     timer.current = null;
     setHolding(false);
   }
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    if (reset.current) clearTimeout(reset.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (reset.current) clearTimeout(reset.current);
+    },
+    [],
+  );
   function begin() {
     if (busy.current || timer.current) return;
     setHolding(true);
@@ -1276,19 +1331,54 @@ function EmergencyButton({ onFire }: { onFire: () => Promise<boolean> }) {
       try {
         if (await onFire()) setState("alerted");
       } finally {
-        reset.current = setTimeout(() => { busy.current = false; setState("ready"); }, 4_000);
+        reset.current = setTimeout(() => {
+          busy.current = false;
+          setState("ready");
+        }, 4_000);
       }
     }, 1_000);
   }
   return (
-    <Button variant="destructive" className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-4 z-[60] touch-none overflow-hidden"
-      aria-label="Emergency — hold for one second" disabled={state !== "ready"}
-      onPointerDown={(event) => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); begin(); }}
-      onPointerUp={cancel} onPointerCancel={cancel} onLostPointerCapture={cancel} onBlur={cancel}
-      onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); if (!event.repeat) begin(); } }}
-      onKeyUp={(event) => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); cancel(); } }}>
-      {holding && <span aria-hidden className="absolute inset-y-0 left-0 bg-destructive-foreground/25" style={{ width: `${fill}%` }} />}
-      <ShieldAlert /> {state === "alerted" ? "School alerted" : state === "sending" ? "Alerting school…" : "Emergency"}
+    <Button
+      variant="destructive"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-4 z-[60] touch-none overflow-hidden"
+      aria-label="Emergency — hold for one second"
+      disabled={state !== "ready"}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        begin();
+      }}
+      onPointerUp={cancel}
+      onPointerCancel={cancel}
+      onLostPointerCapture={cancel}
+      onBlur={cancel}
+      onKeyDown={(event) => {
+        if (event.key === " " || event.key === "Enter") {
+          event.preventDefault();
+          if (!event.repeat) begin();
+        }
+      }}
+      onKeyUp={(event) => {
+        if (event.key === " " || event.key === "Enter") {
+          event.preventDefault();
+          cancel();
+        }
+      }}
+    >
+      {holding && (
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 bg-destructive-foreground/25"
+          style={{ width: `${fill}%` }}
+        />
+      )}
+      <ShieldAlert />{" "}
+      {state === "alerted"
+        ? "School alerted"
+        : state === "sending"
+          ? "Alerting school…"
+          : "Emergency"}
     </Button>
   );
 }

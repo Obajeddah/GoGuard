@@ -10,17 +10,18 @@ export interface PassRecord {
 }
 
 export type PassCheck =
-  | { ok: true }
-  | { ok: false; reason: "unknown" | "other_school" | "other_child" };
+  { ok: true } | { ok: false; reason: "unknown" | "other_school" | "other_child" };
 
 export function checkPass(
   scannedHash: string | null,
   record: PassRecord | null,
   expected: { orgId: string; memberIds?: string[] },
 ): PassCheck {
-  if (!scannedHash || !record || record.unique_qr_hash !== scannedHash) return { ok: false, reason: "unknown" };
+  if (!scannedHash || !record || record.unique_qr_hash !== scannedHash)
+    return { ok: false, reason: "unknown" };
   if (record.org_id !== expected.orgId) return { ok: false, reason: "other_school" };
-  if (expected.memberIds && !expected.memberIds.includes(record.member_id)) return { ok: false, reason: "other_child" };
+  if (expected.memberIds && !expected.memberIds.includes(record.member_id))
+    return { ok: false, reason: "other_child" };
   return { ok: true };
 }
 

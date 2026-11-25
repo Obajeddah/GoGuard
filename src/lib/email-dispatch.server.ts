@@ -4,7 +4,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { billingState } from "./billing";
 import { emailConfigured, sendEmail, type OutgoingEmail } from "./email.server";
 import { gateEmail } from "./gate-email";
-import { busRideRecipients, gateRecipients, type RecipientGuardian } from "./notification-recipients";
+import {
+  busRideRecipients,
+  gateRecipients,
+  type RecipientGuardian,
+} from "./notification-recipients";
 import { rideEmail } from "./ride-email";
 
 const BATCH = 20;
@@ -79,7 +83,11 @@ async function deliveredTo(sourceTable: string, sourceId: string): Promise<Set<s
 async function recordDelivery(sourceTable: string, sourceId: string, emails: string[]) {
   if (!emails.length) return;
   await supabaseAdmin.from("email_deliveries").upsert(
-    emails.map((email) => ({ source_table: sourceTable, source_id: sourceId, email: email.toLowerCase() })),
+    emails.map((email) => ({
+      source_table: sourceTable,
+      source_id: sourceId,
+      email: email.toLowerCase(),
+    })),
     { onConflict: "source_table,source_id,email" },
   );
 }
@@ -113,12 +121,16 @@ const asRecipients = (rows: GuardianRow[]): RecipientGuardian[] =>
     receive_general_notifications: g.receive_general_notifications,
   }));
 
-export async function sendPendingEmails(siteUrl: string): Promise<{ sent: number; skipped: number }> {
+export async function sendPendingEmails(
+  siteUrl: string,
+): Promise<{ sent: number; skipped: number }> {
   if (!emailConfigured()) return { sent: 0, skipped: 0 };
 
   const { data: logs } = await supabaseAdmin
     .from("gate_logs")
-    .select("id, org_id, member_id, guardian_id, action_type, member_name, verified_guardian_name, timestamp")
+    .select(
+      "id, org_id, member_id, guardian_id, action_type, member_name, verified_guardian_name, timestamp",
+    )
     .is("emailed_at", null)
     .order("timestamp", { ascending: true })
     .limit(BATCH);
@@ -136,7 +148,9 @@ export async function sendPendingEmails(siteUrl: string): Promise<{ sent: number
     .limit(BATCH);
 
   const gateLogs = logs ?? [];
-  const rideNotices = (notices ?? []).filter((n) => n.member_id && (n.kind === "pupil_boarded" || n.kind === "pupil_dropped_off"));
+  const rideNotices = (notices ?? []).filter(
+    (n) => n.member_id && (n.kind === "pupil_boarded" || n.kind === "pupil_dropped_off"),
+  );
   const adminNotices = (notices ?? []).filter((n) => !n.member_id || !rideNotices.includes(n));
   const alerts = emergencies ?? [];
 
@@ -217,7 +231,10 @@ export async function sendPendingEmails(siteUrl: string): Promise<{ sent: number
       to: recipient.email,
       subject: content.subject,
       text: [content.message, ...content.links.map((l) => `${l.label}: ${l.href}`)].join("\n\n"),
-      html: [content.message, ...content.links.map((l) => `<p><a href="${l.href}">${l.label}</a></p>`)].join(""),
+      html: [
+        content.message,
+        ...content.links.map((l) => `<p><a href="${l.href}">${l.label}</a></p>`),
+      ].join(""),
     }));
     if (!(await deliver("transport_notices", notice.id, messages, pending))) continue;
     await supabaseAdmin.from("transport_notices").update({ emailed_at: now() }).eq("id", notice.id);

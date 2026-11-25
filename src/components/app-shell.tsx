@@ -1,7 +1,20 @@
 import type { ReactNode } from "react";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Building2, Bus, CalendarCheck, Clock, LayoutDashboard, Loader2, LogOut, ScanLine, Settings, UserCog, Users } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  Bus,
+  CalendarCheck,
+  Clock,
+  LayoutDashboard,
+  Loader2,
+  LogOut,
+  ScanLine,
+  Settings,
+  UserCog,
+  Users,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { accessOf, useMe } from "@/hooks/use-me";
@@ -12,7 +25,13 @@ import { Brand } from "@/components/brand";
 import { TrialBanner } from "@/components/trial-banner";
 import { TwoStepGate } from "@/components/two-step-gate";
 import { setSelectedBranch, useBranch } from "@/hooks/use-branch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export function AppShell({
@@ -61,7 +80,12 @@ export function AppShell({
   }
 
   return (
-    <div className={cn("min-h-screen pb-24 md:pb-0", tone === "dark" && "dark bg-background text-foreground")}>
+    <div
+      className={cn(
+        "min-h-screen pb-24 md:pb-0",
+        tone === "dark" && "dark bg-background text-foreground",
+      )}
+    >
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
           <Brand to="/dashboard" />
@@ -75,7 +99,10 @@ export function AppShell({
             </div>
           )}
           {branch.canSwitch && (
-            <Select value={branch.branchId ?? "all"} onValueChange={(v) => setSelectedBranch(v === "all" ? null : v)}>
+            <Select
+              value={branch.branchId ?? "all"}
+              onValueChange={(v) => setSelectedBranch(v === "all" ? null : v)}
+            >
               <SelectTrigger className="h-9 w-auto min-w-36 max-w-48 gap-1.5" aria-label="Branch">
                 <Building2 className="size-4 shrink-0 text-muted-foreground" />
                 <SelectValue />
@@ -102,7 +129,13 @@ export function AppShell({
               </Link>
             ))}
           </nav>
-          <Button variant="ghost" size="sm" onClick={signOut} className="ml-auto md:ml-0" aria-label="Sign out">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="ml-auto md:ml-0"
+            aria-label="Sign out"
+          >
             <LogOut /> <span className="hidden sm:inline">Sign out</span>
           </Button>
         </div>
@@ -117,7 +150,9 @@ export function AppShell({
           <div className="mx-auto max-w-md py-16 text-center">
             <Clock className="mx-auto size-10 text-muted-foreground" />
             <h1 className="mt-4 text-2xl font-bold">
-              {me.pendingRequest.status === "declined" ? "Request declined" : "Waiting for approval"}
+              {me.pendingRequest.status === "declined"
+                ? "Request declined"
+                : "Waiting for approval"}
             </h1>
             <p className="mt-2 text-muted-foreground">
               {me.pendingRequest.status === "declined"
@@ -129,8 +164,8 @@ export function AppShell({
           <div className="mx-auto max-w-md py-16 text-center">
             <h1 className="text-2xl font-bold">No organisation linked</h1>
             <p className="mt-2 text-muted-foreground">
-              This account isn't connected to a school or organisation. Ask your administrator to add you, or register a
-              new one.
+              This account isn't connected to a school or organisation. Ask your administrator to
+              add you, or register a new one.
             </p>
             <Button asChild className="mt-6">
               <Link to="/signup">Register</Link>
@@ -162,7 +197,10 @@ export function AppShell({
 
       {visible.length > 1 && (
         <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-          <div className="mx-auto grid max-w-md" style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}>
+          <div
+            className="mx-auto grid max-w-md"
+            style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}
+          >
             {visible.map((n) => (
               <Link
                 key={n.to}

@@ -117,12 +117,19 @@ function MembersPage() {
   const membersQuery = useQuery({
     queryKey: ["members", org.id, branchId],
     queryFn: async () => {
-      return readAll((from, to) => inBranch(supabase
-        .from("members")
-        .select(
-          "id, branch_id, full_name, identifier_code, parent_or_owner_name, primary_email, primary_phone, photo_path, created_at, guardians(id, name, relationship, email, photo_path, receive_general_notifications, unique_qr_hash)",
-        )
-        .eq("org_id", org.id).order("full_name").order("id"), branchId).range(from, to)) as Promise<MemberRow[]>;
+      return readAll((from, to) =>
+        inBranch(
+          supabase
+            .from("members")
+            .select(
+              "id, branch_id, full_name, identifier_code, parent_or_owner_name, primary_email, primary_phone, photo_path, created_at, guardians(id, name, relationship, email, photo_path, receive_general_notifications, unique_qr_hash)",
+            )
+            .eq("org_id", org.id)
+            .order("full_name")
+            .order("id"),
+          branchId,
+        ).range(from, to),
+      ) as Promise<MemberRow[]>;
     },
   });
 
@@ -132,12 +139,16 @@ function MembersPage() {
   const classOptions = useMemo(() => {
     const groups = classGroups(all, schoolClasses);
     const count = (label: string | null) =>
-      groups.find((g) => (g.label ?? null)?.toLowerCase() === label?.toLowerCase())?.members.length ?? 0;
+      groups.find((g) => (g.label ?? null)?.toLowerCase() === label?.toLowerCase())?.members
+        .length ?? 0;
     const labels = [
       ...schoolClasses,
       ...groups
         .map((g) => g.label)
-        .filter((l): l is string => !!l && !schoolClasses.some((c) => c.toLowerCase() === l.toLowerCase())),
+        .filter(
+          (l): l is string =>
+            !!l && !schoolClasses.some((c) => c.toLowerCase() === l.toLowerCase()),
+        ),
     ];
     return {
       classes: labels.map((l) => ({ label: l, count: count(l) })),
@@ -151,7 +162,9 @@ function MembersPage() {
     if (dupOnly) list = list.filter((m) => dupes.has(m.id));
     if (classFilter === "__none") list = list.filter((m) => !m.identifier_code?.trim());
     else if (classFilter !== "all")
-      list = list.filter((m) => m.identifier_code?.trim().toLowerCase() === classFilter.toLowerCase());
+      list = list.filter(
+        (m) => m.identifier_code?.trim().toLowerCase() === classFilter.toLowerCase(),
+      );
     if (!term) return list;
     return list.filter((m) =>
       [
@@ -210,13 +223,19 @@ function MembersPage() {
           onChange={(e) => setClassFilter(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
         >
-          <option value="all">All {terms.members.toLowerCase()} ({all.length})</option>
+          <option value="all">
+            All {terms.members.toLowerCase()} ({all.length})
+          </option>
           {classOptions.classes.map((c) => (
             <option key={c.label} value={c.label}>
               {c.label} ({c.count})
             </option>
           ))}
-          {classOptions.none > 0 && <option value="__none">No {terms.identifier.toLowerCase()} ({classOptions.none})</option>}
+          {classOptions.none > 0 && (
+            <option value="__none">
+              No {terms.identifier.toLowerCase()} ({classOptions.none})
+            </option>
+          )}
         </select>
         {dupes.size > 0 && (
           <Button
@@ -237,16 +256,18 @@ function MembersPage() {
       ) : filtered.length === 0 ? (
         <div className="rounded-3xl border border-dashed p-10 text-center">
           <p className="font-medium">
-            {q.trim() || classFilter !== "all" || dupOnly ? "No matches" : `No ${terms.members.toLowerCase()} yet`}
+            {q.trim() || classFilter !== "all" || dupOnly
+              ? "No matches"
+              : `No ${terms.members.toLowerCase()} yet`}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {classFilter !== "all" && !q.trim()
               ? `No ${terms.members.toLowerCase()} registered in this ${terms.identifier.toLowerCase()} yet.`
               : q.trim() || dupOnly
-              ? "Try a different name or spelling."
-              : isAdmin
-                ? `Share your registration link from the Live page, or add ${terms.members.toLowerCase()} here.`
-                : `${terms.members} appear here once they're registered.`}
+                ? "Try a different name or spelling."
+                : isAdmin
+                  ? `Share your registration link from the Live page, or add ${terms.members.toLowerCase()} here.`
+                  : `${terms.members} appear here once they're registered.`}
           </p>
         </div>
       ) : (
@@ -278,7 +299,13 @@ function MembersPage() {
 
       {isAdmin && (
         <>
-          <AddMemberDialog open={adding} onOpenChange={setAdding} orgId={org.id} terms={terms} classes={schoolClasses} />
+          <AddMemberDialog
+            open={adding}
+            onOpenChange={setAdding}
+            orgId={org.id}
+            terms={terms}
+            classes={schoolClasses}
+          />
           <ImportDialog open={importing} onOpenChange={setImporting} orgId={org.id} terms={terms} />
         </>
       )}
@@ -394,11 +421,13 @@ function MemberCard({
           {dup && (
             <div className="mb-4 rounded-xl border border-signal/40 bg-signal/10 p-3 text-sm">
               <p className="flex items-center gap-1.5 font-semibold">
-                <AlertTriangle className="size-4" /> Same name registered {dup.others.length + 1} times
+                <AlertTriangle className="size-4" /> Same name registered {dup.others.length + 1}{" "}
+                times
               </p>
               {dup.differentParents && (
                 <p className="mt-1 font-medium text-destructive">
-                  Registered by different parent emails. Check with the parent you know before removing one.
+                  Registered by different parent emails. Check with the parent you know before
+                  removing one.
                 </p>
               )}
               <ul className="mt-2 space-y-1 text-muted-foreground">
@@ -407,9 +436,13 @@ function MemberCard({
                   if (!o) return null;
                   return (
                     <li key={id} className={cn(id === member.id && "font-medium text-foreground")}>
-                      {id === member.id ? "This one" : o.full_name} · {o.identifier_code || `no ${terms.identifier.toLowerCase()}`} · {o.primary_email} ·{" "}
-                      {format(new Date(o.created_at), "d MMM yyyy, HH:mm")} · {o.guardians.length}{" "}
-                      {o.guardians.length === 1 ? terms.guardian.toLowerCase() : terms.guardians.toLowerCase()}
+                      {id === member.id ? "This one" : o.full_name} ·{" "}
+                      {o.identifier_code || `no ${terms.identifier.toLowerCase()}`} ·{" "}
+                      {o.primary_email} · {format(new Date(o.created_at), "d MMM yyyy, HH:mm")} ·{" "}
+                      {o.guardians.length}{" "}
+                      {o.guardians.length === 1
+                        ? terms.guardian.toLowerCase()
+                        : terms.guardians.toLowerCase()}
                     </li>
                   );
                 })}
@@ -616,7 +649,8 @@ function AddMemberDialog({
   }
 
   async function save() {
-    const branchId = branch.branchId ?? (branch.branches.length === 1 ? branch.branches[0]?.id : null);
+    const branchId =
+      branch.branchId ?? (branch.branches.length === 1 ? branch.branches[0]?.id : null);
     if (!branchId) {
       toast.error("Select a branch before adding a student.");
       return;
@@ -817,7 +851,8 @@ function ImportDialog({
   const [busy, setBusy] = useState(false);
 
   async function onFile(file: File) {
-    const branchId = branch.branchId ?? (branch.branches.length === 1 ? branch.branches[0]?.id : null);
+    const branchId =
+      branch.branchId ?? (branch.branches.length === 1 ? branch.branches[0]?.id : null);
     if (!branchId) {
       toast.error("Select a branch before importing students.");
       return;

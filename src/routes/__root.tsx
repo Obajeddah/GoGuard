@@ -45,6 +45,37 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  // A preview or self-hosted build with no backend credentials is a setup
+  // state, not a crash: say so instead of claiming something broke on our end.
+  const notConnected = /Missing Supabase environment variable/i.test(
+    (error as { message?: string })?.message ?? "",
+  );
+  if (notConnected) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            This build isn't connected to a database
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The landing and pricing pages work without one, but signing in, registering and gate
+            passes need the Supabase keys from <code className="font-mono text-xs">.env</code>. Copy{" "}
+            <code className="font-mono text-xs">.env.example</code>, fill in the values, then
+            restart the dev server.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <a
+              href="/"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Go home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -83,7 +114,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#1d3a30" },
       { title: "GoGuard — Safe school drop-off and pick-up" },
-      { name: "description", content: "Verified guardians and QR gate passes for safe school drop-off and pick-up." },
+      {
+        name: "description",
+        content: "Verified guardians and QR gate passes for safe school drop-off and pick-up.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

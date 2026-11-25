@@ -40,7 +40,16 @@ export const ORG_TERMS: Record<OrgType, OrgTerms> = {
     checkOut: "Check out",
     checkInHint: "Drop-off",
     checkOutHint: "Pick-up",
-    relationships: ["Mother", "Father", "Grandparent", "Aunt", "Uncle", "Sibling", "Nanny", "Driver"],
+    relationships: [
+      "Mother",
+      "Father",
+      "Grandparent",
+      "Aunt",
+      "Uncle",
+      "Sibling",
+      "Nanny",
+      "Driver",
+    ],
   },
   estate: {
     label: "Estate",

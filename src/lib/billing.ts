@@ -43,7 +43,8 @@ export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
 export const TRIAL_DAYS = 14;
 /** Each branch beyond the three included in Multi-School Group. */
 export const EXTRA_BRANCH_NAIRA = 3_000;
-export const TRIAL_LOCK_MESSAGE = "Upgrade to paid plan to unlock Transport & Multi-Branch features.";
+export const TRIAL_LOCK_MESSAGE =
+  "Upgrade to paid plan to unlock Transport & Multi-Branch features.";
 
 export function isPlanId(plan: string | null | undefined): plan is PlanId {
   return !!plan && plan in PLANS;
@@ -99,7 +100,8 @@ export function nextPaidUntil(org: BillingInput, plan: string, now: Date = new D
   const paidActive = time(org.paid_until) > now.getTime();
   let start = now.getTime();
   if (samePlan && paidActive) start = time(org.paid_until);
-  if (target === "basic" && (samePlan || !paidActive)) start = Math.max(start, time(org.trial_ends_at));
+  if (target === "basic" && (samePlan || !paidActive))
+    start = Math.max(start, time(org.trial_ends_at));
   return addMonths(new Date(start), monthsOf(plan));
 }
 

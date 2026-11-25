@@ -30,7 +30,12 @@ export function PassCard({
   className?: string | undefined;
 }) {
   return (
-    <div className={cn("mx-auto w-full max-w-sm overflow-hidden rounded-3xl bg-card shadow-pass", className)}>
+    <div
+      className={cn(
+        "mx-auto w-full max-w-sm overflow-hidden rounded-3xl bg-card shadow-pass",
+        className,
+      )}
+    >
       <div className="bg-gradient-ink px-6 pb-8 pt-6 text-ink-foreground">
         <div className="flex items-center justify-between text-xs uppercase tracking-[0.18em] text-ink-muted">
           <span>GoGuard</span>
@@ -55,13 +60,19 @@ export function PassCard({
         <div className="rounded-2xl bg-card p-3 ring-1 ring-border">
           <QRCodeSVG value={hash} size={208} level="M" marginSize={1} />
         </div>
-        <p className="mt-4 text-center text-xs uppercase tracking-[0.16em] text-muted-foreground">Authorised for</p>
+        <p className="mt-4 text-center text-xs uppercase tracking-[0.16em] text-muted-foreground">
+          Authorised for
+        </p>
         <p className="text-center font-display text-lg font-semibold">
           {memberName}
-          {identifier ? <span className="font-sans font-normal text-muted-foreground"> · {identifier}</span> : null}
+          {identifier ? (
+            <span className="font-sans font-normal text-muted-foreground"> · {identifier}</span>
+          ) : null}
         </p>
         <p className="mt-1 text-center text-sm text-muted-foreground">{orgName}</p>
-        <p className="mt-4 font-mono text-[10px] text-muted-foreground">{hash.slice(0, 8).toUpperCase()}…{hash.slice(-4).toUpperCase()}</p>
+        <p className="mt-4 font-mono text-[10px] text-muted-foreground">
+          {hash.slice(0, 8).toUpperCase()}…{hash.slice(-4).toUpperCase()}
+        </p>
       </div>
     </div>
   );

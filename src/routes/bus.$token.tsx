@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { Bus, CheckCircle2, Clock, MapPin, PhoneCall, UserRound } from "lucide-react";
 
 import { getBusTracking } from "@/lib/bus-track.functions";
+import { isRateLimitResponse } from "@/lib/rate-limit";
 import { DIRECTION_LABEL, lastSeenText } from "@/lib/bus";
 import { telHref } from "@/lib/ride-email";
 import { GateMark } from "@/components/brand";
@@ -19,16 +20,27 @@ const trackingQuery = (token: string) =>
 
 export const Route = createFileRoute("/bus/$token")({
   loader: async ({ params, context }) => {
-    const t = await context.queryClient.ensureQueryData(trackingQuery(params.token)).catch(() => null);
+    const t = await context.queryClient
+      .ensureQueryData(trackingQuery(params.token))
+      .catch((error) => {
+        if (isRateLimitResponse(error)) throw error;
+        return null;
+      });
     if (!t) throw notFound();
     return null;
   },
   head: () => ({
     meta: [
       { title: "Where is my child? — GoGuard" },
-      { name: "description", content: "Your child's school bus status and where the bus was last seen." },
+      {
+        name: "description",
+        content: "Your child's school bus status and where the bus was last seen.",
+      },
       { property: "og:title", content: "Where is my child? — GoGuard" },
-      { property: "og:description", content: "Your child's school bus status and where the bus was last seen." },
+      {
+        property: "og:description",
+        content: "Your child's school bus status and where the bus was last seen.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
@@ -57,9 +69,17 @@ function BusTrackPage() {
 
   const at = (iso: string) => format(new Date(iso), "h:mm a");
   const status = !t.bus
-    ? { tone: "muted", title: "Not on a bus yet", text: `${t.orgName} hasn't put ${t.childName} on a bus yet.` }
+    ? {
+        tone: "muted",
+        title: "Not on a bus yet",
+        text: `${t.orgName} hasn't put ${t.childName} on a bus yet.`,
+      }
     : t.child?.state === "onboard"
-      ? { tone: "checkin", title: "On the bus", text: `Boarded Bus ${t.bus.number} at ${at(t.child.at)}.` }
+      ? {
+          tone: "checkin",
+          title: "On the bus",
+          text: `Boarded Bus ${t.bus.number} at ${at(t.child.at)}.`,
+        }
       : t.child?.state === "dropped"
         ? {
             tone: "checkout",
@@ -70,8 +90,16 @@ function BusTrackPage() {
                 : `Got off at ${at(t.child.at)}${t.child.guardianName ? `, handed to ${t.child.guardianName}` : ""}.`,
           }
         : t.ride
-          ? { tone: "signal", title: "Not on the bus yet", text: `Bus ${t.bus.number} is on its ${DIRECTION_LABEL[t.ride.direction].toLowerCase()}.` }
-          : { tone: "muted", title: "No ride right now", text: `Bus ${t.bus.number} isn't on a ride.` };
+          ? {
+              tone: "signal",
+              title: "Not on the bus yet",
+              text: `Bus ${t.bus.number} is on its ${DIRECTION_LABEL[t.ride.direction].toLowerCase()}.`,
+            }
+          : {
+              tone: "muted",
+              title: "No ride right now",
+              text: `Bus ${t.bus.number} isn't on a ride.`,
+            };
 
   return (
     <div className="min-h-screen pb-16">
@@ -84,14 +112,20 @@ function BusTrackPage() {
           <p className="mt-6 text-sm text-ink-muted">Where is my child?</p>
           <h1 className="text-3xl font-extrabold leading-tight">{t.childName}</h1>
           {(t.className || t.branchName) && (
-            <p className="mt-1 text-ink-muted">{[t.className, t.children.length > 1 ? t.branchName : null].filter(Boolean).join(" · ")}</p>
+            <p className="mt-1 text-ink-muted">
+              {[t.className, t.children.length > 1 ? t.branchName : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
           )}
         </div>
       </header>
 
       {t.children.length > 1 && (
         <nav aria-label="Select child" className="mx-auto mt-4 max-w-xl px-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Select child</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            Select child
+          </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {t.children.map((c) => (
               <Link
@@ -101,11 +135,18 @@ function BusTrackPage() {
                 replace
                 className={cn(
                   "shrink-0 rounded-2xl border px-3.5 py-2 text-sm",
-                  c.current ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary",
+                  c.current
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-card hover:border-primary",
                 )}
               >
                 <span className="block font-medium">{c.name}</span>
-                <span className={cn("block text-xs", c.current ? "opacity-80" : "text-muted-foreground")}>
+                <span
+                  className={cn(
+                    "block text-xs",
+                    c.current ? "opacity-80" : "text-muted-foreground",
+                  )}
+                >
                   {[c.branch, c.bus ? `Bus ${c.bus}` : "No bus yet"].filter(Boolean).join(" · ")}
                 </span>
               </Link>
@@ -114,7 +155,9 @@ function BusTrackPage() {
         </nav>
       )}
 
-      <main className={cn("mx-auto max-w-xl space-y-4 px-4", t.children.length > 1 ? "mt-4" : "-mt-5")}>
+      <main
+        className={cn("mx-auto max-w-xl space-y-4 px-4", t.children.length > 1 ? "mt-4" : "-mt-5")}
+      >
         <section className="rounded-3xl border bg-card p-5 shadow-soft">
           <div className="flex items-start gap-3">
             <span
@@ -126,7 +169,13 @@ function BusTrackPage() {
                 status.tone === "muted" && "bg-muted text-muted-foreground",
               )}
             >
-              {status.tone === "checkout" ? <CheckCircle2 /> : status.tone === "muted" ? <Clock /> : <Bus />}
+              {status.tone === "checkout" ? (
+                <CheckCircle2 />
+              ) : status.tone === "muted" ? (
+                <Clock />
+              ) : (
+                <Bus />
+              )}
             </span>
             <div>
               <p className="font-display text-xl font-bold">{status.title}</p>
@@ -139,9 +188,14 @@ function BusTrackPage() {
               <span>
                 {lastSeenText(t.lastSeen.place, t.lastSeen.at, dataUpdatedAt || Date.now())}
                 {t.lastSeen.updating ? (
-                  <span className="font-normal text-muted-foreground"> · asking the bus for an update…</span>
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    · asking the bus for an update…
+                  </span>
                 ) : (
-                  t.lastSeen.stale && <span className="font-normal text-muted-foreground"> · no signal since</span>
+                  t.lastSeen.stale && (
+                    <span className="font-normal text-muted-foreground"> · no signal since</span>
+                  )
                 )}
               </span>
             </p>

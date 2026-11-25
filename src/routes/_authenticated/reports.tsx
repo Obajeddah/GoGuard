@@ -64,15 +64,19 @@ function Reports() {
   const logsQuery = useQuery({
     queryKey: ["gate-logs", "report", org.id, branchId, from, to, action],
     queryFn: async () => {
-      let query = inBranch(supabase
-        .from("gate_logs")
-        .select(
-          "id, action_type, timestamp, member_name, verified_guardian_name, guard_name, member:members(identifier_code)",
-        )
-        .gte("timestamp", startOfDay(new Date(`${from}T00:00:00`)).toISOString())
-        .lte("timestamp", endOfDay(new Date(`${to}T00:00:00`)).toISOString())
-        .eq("org_id", org.id)
-        .order("timestamp", { ascending: false }).order("id"), branchId);
+      let query = inBranch(
+        supabase
+          .from("gate_logs")
+          .select(
+            "id, action_type, timestamp, member_name, verified_guardian_name, guard_name, member:members(identifier_code)",
+          )
+          .gte("timestamp", startOfDay(new Date(`${from}T00:00:00`)).toISOString())
+          .lte("timestamp", endOfDay(new Date(`${to}T00:00:00`)).toISOString())
+          .eq("org_id", org.id)
+          .order("timestamp", { ascending: false })
+          .order("id"),
+        branchId,
+      );
       if (action !== "all") query = query.eq("action_type", action);
       return readAll((from, to) => query.range(from, to));
     },
@@ -80,7 +84,9 @@ function Reports() {
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
-    const list = (logsQuery.data ?? []).filter((l) => classFilter === "all" || (l.member?.identifier_code ?? "__none__") === classFilter);
+    const list = (logsQuery.data ?? []).filter(
+      (l) => classFilter === "all" || (l.member?.identifier_code ?? "__none__") === classFilter,
+    );
     if (!term) return list;
     return list.filter((l) =>
       [l.member_name, l.verified_guardian_name, l.guard_name, l.member?.identifier_code]
@@ -119,7 +125,11 @@ function Reports() {
         </div>
         {can(!!me?.isAdmin, "export_reports") && (
           <div className="flex flex-col items-end gap-1">
-            <Button variant="signal" onClick={exportCsv} disabled={!rows.length || !billingState(org).canExport}>
+            <Button
+              variant="signal"
+              onClick={exportCsv}
+              disabled={!rows.length || !billingState(org).canExport}
+            >
               <Download /> Download spreadsheet
             </Button>
             {!billingState(org).canExport && (
@@ -182,9 +192,18 @@ function Reports() {
             ))}
           </div>
         </div>
-        <select aria-label="Class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm sm:col-span-3">
+        <select
+          aria-label="Class"
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          className="h-10 rounded-md border bg-background px-3 text-sm sm:col-span-3"
+        >
           <option value="all">All classes</option>
-          {org.classes.map((c) => <option key={c} value={c}>{c}</option>)}
+          {org.classes.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
           <option value="__none__">No class</option>
         </select>
         <div className="relative sm:col-span-3">

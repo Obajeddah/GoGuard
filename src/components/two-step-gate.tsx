@@ -22,7 +22,9 @@ export function TwoStepGate({ children }: { children: ReactNode }) {
       return {
         current: level?.currentLevel ?? "aal1",
         verified: (factors?.totp ?? []).filter((f) => f.status === "verified"),
-        unverified: (factors?.all ?? []).filter((f) => f.factor_type === "totp" && f.status !== "verified"),
+        unverified: (factors?.all ?? []).filter(
+          (f) => f.factor_type === "totp" && f.status !== "verified",
+        ),
       };
     },
     staleTime: 30_000,
@@ -36,7 +38,11 @@ export function TwoStepGate({ children }: { children: ReactNode }) {
     );
   if (aal.data?.current === "aal2") return <>{children}</>;
   const factor = aal.data?.verified[0];
-  return factor ? <Challenge factorId={factor.id} /> : <Enroll stale={aal.data?.unverified.map((f) => f.id) ?? []} />;
+  return factor ? (
+    <Challenge factorId={factor.id} />
+  ) : (
+    <Enroll stale={aal.data?.unverified.map((f) => f.id) ?? []} />
+  );
 }
 
 function useDone() {
@@ -74,7 +80,15 @@ function Frame({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function CodeForm({ onSubmit, busy, error }: { onSubmit: (code: string) => void; busy: boolean; error: string | null }) {
+function CodeForm({
+  onSubmit,
+  busy,
+  error,
+}: {
+  onSubmit: (code: string) => void;
+  busy: boolean;
+  error: string | null;
+}) {
   const [code, setCode] = useState("");
   return (
     <form
@@ -94,7 +108,9 @@ function CodeForm({ onSubmit, busy, error }: { onSubmit: (code: string) => void;
         className="h-12 text-center font-mono text-xl tracking-[0.4em]"
         autoFocus
       />
-      {error && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
       <Button type="submit" size="lg" className="w-full" disabled={busy || code.length !== 6}>
         {busy && <Loader2 className="animate-spin" />} Verify
       </Button>
@@ -108,7 +124,9 @@ function Challenge({ factorId }: { factorId: string }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <Frame title="Two-step sign-in">
-      <p className="mt-1 text-muted-foreground">Enter the 6-digit code from your authenticator app.</p>
+      <p className="mt-1 text-muted-foreground">
+        Enter the 6-digit code from your authenticator app.
+      </p>
       <CodeForm
         busy={busy}
         error={error}
@@ -154,8 +172,8 @@ function Enroll({ stale }: { stale: string[] }) {
   return (
     <Frame title="Set up two-step sign-in">
       <p className="mt-1 text-muted-foreground">
-        Administrator accounts need a code from an authenticator app (Google Authenticator, Microsoft Authenticator or
-        similar) each time they sign in.
+        Administrator accounts need a code from an authenticator app (Google Authenticator,
+        Microsoft Authenticator or similar) each time they sign in.
       </p>
       {failed ? (
         <p className="mt-5 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -173,7 +191,8 @@ function Enroll({ stale }: { stale: string[] }) {
             <img src={setup.qr} alt="Two-step sign-in QR code" className="size-44" />
           </div>
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Can't scan? Enter this key: <span className="select-all break-all font-mono text-foreground">{setup.secret}</span>
+            Can't scan? Enter this key:{" "}
+            <span className="select-all break-all font-mono text-foreground">{setup.secret}</span>
           </p>
           <CodeForm
             busy={busy}
@@ -181,9 +200,13 @@ function Enroll({ stale }: { stale: string[] }) {
             onSubmit={async (code) => {
               setBusy(true);
               setError(null);
-              const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: setup.id, code });
+              const { error } = await supabase.auth.mfa.challengeAndVerify({
+                factorId: setup.id,
+                code,
+              });
               setBusy(false);
-              if (error) setError("That code didn't work. Check the time on your phone and try again.");
+              if (error)
+                setError("That code didn't work. Check the time on your phone and try again.");
               else await done();
             }}
           />

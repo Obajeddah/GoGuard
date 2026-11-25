@@ -5,7 +5,13 @@ type Turnstile = {
   remove: (id: string) => void;
 };
 
-export function SignupCaptcha({ siteKey, onToken }: { siteKey: string; onToken: (token: string) => void }) {
+export function SignupCaptcha({
+  siteKey,
+  onToken,
+}: {
+  siteKey: string;
+  onToken: (token: string) => void;
+}) {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let widget: string | undefined;
@@ -16,11 +22,14 @@ export function SignupCaptcha({ siteKey, onToken }: { siteKey: string; onToken: 
       const turnstile = api();
       if (disposed || !element || !turnstile || widget) return;
       widget = turnstile.render(element, {
-        sitekey: siteKey, action: "school-signup", callback: onToken,
-        "expired-callback": () => onToken(""), "error-callback": () => onToken(""),
+        sitekey: siteKey,
+        action: "school-signup",
+        callback: onToken,
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onToken(""),
       });
     };
-    let script = document.querySelector<HTMLScriptElement>('script[data-signup-captcha]');
+    let script = document.querySelector<HTMLScriptElement>("script[data-signup-captcha]");
     if (!script) {
       script = document.createElement("script");
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";

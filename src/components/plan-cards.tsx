@@ -1,7 +1,15 @@
 import type { ReactNode } from "react";
 import { Check, Lock } from "lucide-react";
 
-import { EXTRA_BRANCH_NAIRA, formatNaira, PLAN_IDS, PLANS, TRIAL_DAYS, TRIAL_LOCK_MESSAGE, type PlanId } from "@/lib/billing";
+import {
+  EXTRA_BRANCH_NAIRA,
+  formatNaira,
+  PLAN_IDS,
+  PLANS,
+  TRIAL_DAYS,
+  TRIAL_LOCK_MESSAGE,
+  type PlanId,
+} from "@/lib/billing";
 import { cn } from "@/lib/utils";
 
 const PLAN_COPY: Record<PlanId, { note: string; limits: string; features: string[] }> = {
@@ -20,7 +28,12 @@ const PLAN_COPY: Record<PlanId, { note: string; limits: string; features: string
   standard: {
     note: "Gate passes plus your school buses.",
     limits: "1 branch · up to 4 buses",
-    features: ["Everything in Basic Gate", "Transport module and live fleet map", "Bus app for drivers", "Pick-up and drop-off alerts for bus parents"],
+    features: [
+      "Everything in Basic Gate",
+      "Transport module and live fleet map",
+      "Bus app for drivers",
+      "Pick-up and drop-off alerts for bus parents",
+    ],
   },
   group: {
     note: "For schools with multiple branches.",
@@ -78,19 +91,45 @@ export function PlanCards({
               )
             )}
             <p className="font-display text-xl font-semibold">{plan.label}</p>
-            <p className={cn("mt-1 text-sm", featured ? "text-ink-muted" : "text-muted-foreground")}>{copy.note}</p>
-            <p className="mt-4 flex flex-wrap items-baseline gap-x-2">
-              <span className="font-display text-4xl font-extrabold">{formatNaira(plan.amountNaira)}</span>
-              <span className={cn("text-sm", featured ? "text-ink-muted" : "text-muted-foreground")}>per month</span>
+            <p
+              className={cn("mt-1 text-sm", featured ? "text-ink-muted" : "text-muted-foreground")}
+            >
+              {copy.note}
             </p>
-            <p className={cn("mt-1 text-sm font-medium", featured ? "text-signal" : "text-primary")}>{copy.limits}</p>
+            <p className="mt-4 flex flex-wrap items-baseline gap-x-2">
+              <span className="font-display text-4xl font-extrabold">
+                {formatNaira(plan.amountNaira)}
+              </span>
+              <span
+                className={cn("text-sm", featured ? "text-ink-muted" : "text-muted-foreground")}
+              >
+                per month
+              </span>
+            </p>
+            <p
+              className={cn("mt-1 text-sm font-medium", featured ? "text-signal" : "text-primary")}
+            >
+              {copy.limits}
+            </p>
             {!plan.trial && (
-              <p className={cn("mt-1 text-xs", featured ? "text-ink-muted" : "text-muted-foreground")}>No free trial</p>
+              <p
+                className={cn(
+                  "mt-1 text-xs",
+                  featured ? "text-ink-muted" : "text-muted-foreground",
+                )}
+              >
+                No free trial
+              </p>
             )}
             <ul className="mt-5 flex-1 space-y-2 text-sm">
               {copy.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">
-                  <Check className={cn("mt-0.5 size-4 shrink-0", featured ? "text-signal" : "text-checkin")} />
+                  <Check
+                    className={cn(
+                      "mt-0.5 size-4 shrink-0",
+                      featured ? "text-signal" : "text-checkin",
+                    )}
+                  />
                   {f}
                 </li>
               ))}

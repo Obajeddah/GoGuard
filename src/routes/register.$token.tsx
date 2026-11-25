@@ -116,7 +116,8 @@ function RegisterPage() {
       e["member_name"] =
         `Enter your ${org.type === "school" ? "child" : terms.member.toLowerCase()}'s full name`;
     if (org.classes.length && !member.identifier_code)
-      e["member_class"] = `Choose your ${org.type === "school" ? "child" : terms.member.toLowerCase()}'s ${terms.identifier.toLowerCase()}`;
+      e["member_class"] =
+        `Choose your ${org.type === "school" ? "child" : terms.member.toLowerCase()}'s ${terms.identifier.toLowerCase()}`;
     if (!parent.name.trim()) e["parent_name"] = "Enter your full name";
     if (!emailOk(parent.email)) e["parent_email"] = "Enter a valid email address";
     guardians.forEach((g, i) => {
@@ -184,7 +185,9 @@ function RegisterPage() {
             <div className="leading-tight">
               <p className="font-display font-semibold">
                 {org.name}
-                {org.branchName && <span className="font-normal text-ink-muted"> · {org.branchName}</span>}
+                {org.branchName && (
+                  <span className="font-normal text-ink-muted"> · {org.branchName}</span>
+                )}
               </p>
               <p className="text-xs text-ink-muted">Secured by GoGuard</p>
             </div>

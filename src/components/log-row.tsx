@@ -37,7 +37,9 @@ export function LogRow({ log, terms }: { log: GateLogRow; terms: OrgTerms }) {
           {log.guard_name ? ` · verified by ${log.guard_name}` : ""}
         </p>
       </div>
-      <time className="shrink-0 font-mono text-xs text-muted-foreground">{format(new Date(log.timestamp), "h:mm a")}</time>
+      <time className="shrink-0 font-mono text-xs text-muted-foreground">
+        {format(new Date(log.timestamp), "h:mm a")}
+      </time>
     </li>
   );
 }

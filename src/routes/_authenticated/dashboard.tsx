@@ -55,20 +55,27 @@ function Dashboard() {
   const isAdmin = !!me?.isAdmin;
   const queryClient = useQueryClient();
   const branch = useBranch();
-  const registrationBranch = branch.branch ?? branch.branches.find((b) => b.is_main) ?? branch.branches[0];
+  const registrationBranch =
+    branch.branch ?? branch.branches.find((b) => b.is_main) ?? branch.branches[0];
   const [since] = useState(() => startOfDay(new Date()).toISOString());
 
   const logsQuery = useQuery({
     queryKey: ["gate-logs", "today", org.id, branch.branchId, since],
     queryFn: async () => {
-      return readAll((from, to) => inBranch(supabase
-        .from("gate_logs")
-        .select(
-          "id, action_type, timestamp, member_id, member_name, verified_guardian_name, guard_name",
-        )
-        .gte("timestamp", since)
-        .eq("org_id", org.id)
-        .order("timestamp", { ascending: false }).order("id"), branch.branchId).range(from, to));
+      return readAll((from, to) =>
+        inBranch(
+          supabase
+            .from("gate_logs")
+            .select(
+              "id, action_type, timestamp, member_id, member_name, verified_guardian_name, guard_name",
+            )
+            .gte("timestamp", since)
+            .eq("org_id", org.id)
+            .order("timestamp", { ascending: false })
+            .order("id"),
+          branch.branchId,
+        ).range(from, to),
+      );
     },
   });
 
@@ -76,8 +83,20 @@ function Dashboard() {
     queryKey: ["counts", org.id, branch.branchId],
     queryFn: async () => {
       const [m, g] = await Promise.all([
-        inBranch(supabase.from("members").select("id", { count: "exact", head: true }).eq("org_id", org.id), branch.branchId),
-        inBranch(supabase.from("guardians").select("id", { count: "exact", head: true }).eq("org_id", org.id), branch.branchId),
+        inBranch(
+          supabase
+            .from("members")
+            .select("id", { count: "exact", head: true })
+            .eq("org_id", org.id),
+          branch.branchId,
+        ),
+        inBranch(
+          supabase
+            .from("guardians")
+            .select("id", { count: "exact", head: true })
+            .eq("org_id", org.id),
+          branch.branchId,
+        ),
       ]);
       return { members: m.count ?? 0, guardians: g.count ?? 0 };
     },

@@ -25,9 +25,15 @@ export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
       { title: "Settings — GoGuard" },
-      { name: "description", content: "Manage your organisation profile, emergency line and gate staff accounts." },
+      {
+        name: "description",
+        content: "Manage your organisation profile, emergency line and gate staff accounts.",
+      },
       { property: "og:title", content: "Settings — GoGuard" },
-      { property: "og:description", content: "Manage your organisation profile, emergency line and gate staff accounts." },
+      {
+        property: "og:description",
+        content: "Manage your organisation profile, emergency line and gate staff accounts.",
+      },
     ],
   }),
   component: () => (
@@ -42,7 +48,9 @@ function SettingsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Your organisation profile and the people who run the gate.</p>
+        <p className="text-muted-foreground">
+          Your organisation profile and the people who run the gate.
+        </p>
       </div>
       <OrgProfile />
       <Classes />
@@ -82,7 +90,8 @@ function OrgProfile() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save your changes."),
   });
 
-  const dirty = name.trim() !== org.name || (phone.trim() || null) !== (org.emergency_phone ?? null);
+  const dirty =
+    name.trim() !== org.name || (phone.trim() || null) !== (org.emergency_phone ?? null);
 
   return (
     <section className="rounded-3xl border bg-card p-5 sm:p-6">
@@ -115,7 +124,8 @@ function OrgProfile() {
           </Button>
           {!org.emergency_phone && (
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <PhoneCall className="size-4" /> Add an emergency line before sharing your registration link.
+              <PhoneCall className="size-4" /> Add an emergency line before sharing your
+              registration link.
             </p>
           )}
         </div>
@@ -135,8 +145,12 @@ function Classes() {
 
   const has = (c: string) => list.some((x) => x.toLowerCase() === c.toLowerCase());
   const toggle = (c: string, on: boolean) =>
-    setList((l) => (on ? normaliseClasses([...l, c]) : l.filter((x) => x.toLowerCase() !== c.toLowerCase())));
-  const customs = list.filter((c) => !PRESET_CLASSES.some((p) => p.toLowerCase() === c.toLowerCase()));
+    setList((l) =>
+      on ? normaliseClasses([...l, c]) : l.filter((x) => x.toLowerCase() !== c.toLowerCase()),
+    );
+  const customs = list.filter(
+    (c) => !PRESET_CLASSES.some((p) => p.toLowerCase() === c.toLowerCase()),
+  );
   const dirty = JSON.stringify(normaliseClasses(list)) !== JSON.stringify(saved);
 
   const save = useMutation({
@@ -174,7 +188,11 @@ function Classes() {
       <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-4">
         {PRESET_CLASSES.map((c) => (
           <label key={c} className="flex cursor-pointer items-center gap-2.5 text-sm">
-            <Checkbox checked={has(c)} onCheckedChange={(v) => toggle(c, v === true)} className="size-5" />
+            <Checkbox
+              checked={has(c)}
+              onCheckedChange={(v) => toggle(c, v === true)}
+              className="size-5"
+            />
             {c}
           </label>
         ))}
@@ -182,7 +200,10 @@ function Classes() {
       {customs.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {customs.map((c) => (
-            <span key={c} className="inline-flex items-center gap-1 rounded-full bg-accent py-1 pl-3 pr-1 text-sm text-accent-foreground">
+            <span
+              key={c}
+              className="inline-flex items-center gap-1 rounded-full bg-accent py-1 pl-3 pr-1 text-sm text-accent-foreground"
+            >
               {c}
               <button
                 type="button"
@@ -219,7 +240,9 @@ function Classes() {
           {save.isPending && <Loader2 className="animate-spin" />} Save classes
         </Button>
         {saved.length === 0 && (
-          <p className="text-sm text-muted-foreground">Until you save classes, parents type their child's class.</p>
+          <p className="text-sm text-muted-foreground">
+            Until you save classes, parents type their child's class.
+          </p>
         )}
       </div>
     </section>
@@ -240,12 +263,21 @@ function Transport() {
 
 function TransportStatus({ org }: { org: NonNullable<Me["org"]> }) {
   const state = billingState(org);
-  const text = state.transportActive && org.paid_until
-    ? `Transport plan active until ${format(new Date(org.paid_until), "d MMMM yyyy")}.`
-    : "Upgrade to paid plan to unlock Transport & Multi-Branch features.";
+  const text =
+    state.transportActive && org.paid_until
+      ? `Transport plan active until ${format(new Date(org.paid_until), "d MMMM yyyy")}.`
+      : "Upgrade to paid plan to unlock Transport & Multi-Branch features.";
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">
-      <p className={state.transportActive ? "text-sm text-muted-foreground" : "text-sm font-medium text-destructive"}>{text}</p>
+      <p
+        className={
+          state.transportActive
+            ? "text-sm text-muted-foreground"
+            : "text-sm font-medium text-destructive"
+        }
+      >
+        {text}
+      </p>
       {state.transportActive ? (
         <Button asChild variant="outline">
           <Link to="/fleet">Open Fleet</Link>
@@ -293,7 +325,13 @@ function Billing() {
     <section id="billing" className="scroll-mt-24 space-y-4">
       <div>
         <h2 className="text-xl font-bold">Plan and billing</h2>
-        <p className={state.status === "expired" ? "font-medium text-destructive" : "text-muted-foreground"}>{summary}</p>
+        <p
+          className={
+            state.status === "expired" ? "font-medium text-destructive" : "text-muted-foreground"
+          }
+        >
+          {summary}
+        </p>
       </div>
       <PlanCards
         action={(id) => (
@@ -309,8 +347,9 @@ function Billing() {
           </Button>
         )}
       />
-      <p className="text-sm text-muted-foreground">Card, bank transfer or USSD, through Paystack.</p>
+      <p className="text-sm text-muted-foreground">
+        Card, bank transfer or USSD, through Paystack.
+      </p>
     </section>
   );
 }
-

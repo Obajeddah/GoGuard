@@ -17,7 +17,12 @@ describe("School signup email must be on the school's own domain", () => {
 
 const guardians: RecipientGuardian[] = [
   { id: "g1", name: "Aunt Ada", email: "ada@example.com", receive_general_notifications: false },
-  { id: "g2", name: "Driver Tunde", email: "tunde@example.com", receive_general_notifications: true },
+  {
+    id: "g2",
+    name: "Driver Tunde",
+    email: "tunde@example.com",
+    receive_general_notifications: true,
+  },
   { id: "g3", name: "Grandma", email: "grandma@example.com", receive_general_notifications: false },
 ];
 

@@ -26,12 +26,17 @@ export function gateEmail(input: {
     "",
     `Time: ${new Date().toLocaleString("en-NG", { timeZone: "Africa/Lagos" })}`,
   ];
-  if (input.emergencyPhone?.trim()) lines.push("", `School emergency line: ${input.emergencyPhone}`);
+  if (input.emergencyPhone?.trim())
+    lines.push("", `School emergency line: ${input.emergencyPhone}`);
   lines.push("", `Open GoGuard: ${input.siteUrl.replace(/\/$/, "")}/dashboard`);
   const text = lines.join("\n");
   const html = lines
     .map((line) => (line ? `<p>${escapeHtml(line)}</p>` : ""))
     .join("")
-    .replace(/School emergency line: ([^<]+)/, (_, phone: string) => `School emergency line: <a href="${telHref(phone)}">${escapeHtml(phone)}</a>`);
+    .replace(
+      /School emergency line: ([^<]+)/,
+      (_, phone: string) =>
+        `School emergency line: <a href="${telHref(phone)}">${escapeHtml(phone)}</a>`,
+    );
   return { subject, text, html };
 }

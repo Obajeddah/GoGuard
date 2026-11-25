@@ -16,7 +16,10 @@ describe("School days", () => {
     expect(week).toEqual(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"]);
   });
   it("never counts days that haven't happened yet", () => {
-    expect(schoolDays("2026-11-02", "2026-11-30", "2026-11-03")).toEqual(["2026-11-02", "2026-11-03"]);
+    expect(schoolDays("2026-11-02", "2026-11-30", "2026-11-03")).toEqual([
+      "2026-11-02",
+      "2026-11-03",
+    ]);
   });
   it("uses the Lagos date, so a 23:30 UTC scan counts for the next day", () => {
     expect(schoolDate(new Date("2026-11-02T23:30:00Z"))).toBe("2026-11-03");
@@ -27,7 +30,11 @@ describe("Automatic attendance", () => {
   const rows = studentAttendance(
     members,
     [
-      { member_id: "a", gate_days: ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"], bus_days: [] },
+      {
+        member_id: "a",
+        gate_days: ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"],
+        bus_days: [],
+      },
       { member_id: "b", gate_days: ["2026-11-02"], bus_days: ["2026-11-03"] },
     ],
     week,

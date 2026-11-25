@@ -12,7 +12,12 @@ export function GateMark({ className }: { className?: string }) {
         fill="none"
         strokeLinecap="round"
       />
-      <path d="M13 24v-8M16 24v-9M19 24v-8" className="stroke-signal-foreground" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M13 24v-8M16 24v-9M19 24v-8"
+        className="stroke-signal-foreground"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960" role="img" aria-label="Illustration of a guardian and child walking through a school gate while a QR gate pass is scanned">
+  <title>Guardian and child at the school gate with a QR pass</title>
+
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#fbf7ee"/>
+      <stop offset="0.55" stop-color="#f3f2e6"/>
+      <stop offset="1" stop-color="#e7eee1"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dfe9d8"/>
+      <stop offset="1" stop-color="#cadbc6"/>
+    </linearGradient>
+    <linearGradient id="gate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3c6f56"/>
+      <stop offset="1" stop-color="#2a503d"/>
+    </linearGradient>
+    <linearGradient id="coat" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#37664f"/>
+      <stop offset="1" stop-color="#264736"/>
+    </linearGradient>
+    <linearGradient id="jacket" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#f3c25f"/>
+      <stop offset="1" stop-color="#e3a338"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f7f2e6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f0bb5c" stop-opacity="0.42"/>
+      <stop offset="0.65" stop-color="#f0bb5c" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#f0bb5c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="lift" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#22402f" flood-opacity="0.18"/>
+    </filter>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#22402f" flood-opacity="0.14"/>
+    </filter>
+    <clipPath id="gateClip">
+      <rect x="676" y="236" width="492" height="532" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1200" height="960" fill="url(#sky)"/>
+  <circle cx="1010" cy="190" r="196" fill="#f2c46a" opacity="0.16"/>
+  <circle cx="1010" cy="190" r="126" fill="#f2c46a" opacity="0.2"/>
+  <circle cx="240" cy="240" r="86" fill="#cddccd" opacity="0.5"/>
+  <circle cx="330" cy="168" r="34" fill="#cddccd" opacity="0.55"/>
+  <circle cx="120" cy="352" r="22" fill="#cddccd" opacity="0.45"/>
+
+  <!-- ground -->
+  <path d="M0 748 C 220 716 420 734 604 748 C 812 764 992 762 1200 728 L1200 960 L0 960 Z" fill="url(#ground)"/>
+  <path d="M0 792 C 260 764 470 782 660 794 C 862 806 1024 802 1200 776" fill="none" stroke="#b9cdb5" stroke-width="6" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- light behind the gate -->
+  <ellipse cx="922" cy="430" rx="338" ry="308" fill="url(#glow)"/>
+
+  <!-- gate -->
+  <g clip-path="url(#gateClip)" filter="url(#lift)">
+    <rect x="676" y="236" width="492" height="532" rx="28" fill="url(#gate)"/>
+  </g>
+  <rect x="656" y="218" width="532" height="34" rx="17" fill="#244534"/>
+
+  <g clip-path="url(#gateClip)">
+    <g fill="#cfdec9" opacity="0.92">
+      <rect x="812" y="326" width="15" height="438" rx="7.5"/>
+      <rect x="858" y="326" width="15" height="438" rx="7.5"/>
+      <rect x="904" y="326" width="15" height="438" rx="7.5"/>
+      <rect x="950" y="326" width="15" height="438" rx="7.5"/>
+      <rect x="996" y="326" width="15" height="438" rx="7.5"/>
+    </g>
+    <rect x="800" y="508" width="224" height="14" rx="7" fill="#cfdec9" opacity="0.92"/>
+    <rect x="800" y="640" width="224" height="12" rx="6" fill="#cfdec9" opacity="0.55"/>
+  </g>
+
+  <!-- gate plaque -->
+  <g filter="url(#soft)">
+    <rect x="846" y="256" width="152" height="50" rx="14" fill="#f8f4e8"/>
+    <path d="M880 281 l9 9 l17 -19" fill="none" stroke="#3c6f56" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="944" cy="281" r="6" fill="#e3a338"/>
+    <circle cx="964" cy="281" r="6" fill="#c7d8c1"/>
+  </g>
+
+  <!-- adult -->
+  <g>
+    <ellipse cx="486" cy="828" rx="86" ry="16" fill="#22402f" opacity="0.12"/>
+    <rect x="458" y="742" width="36" height="82" rx="16" fill="#33413a"/>
+    <rect x="500" y="742" width="36" height="82" rx="16" fill="#2c3933"/>
+    <rect x="450" y="810" width="52" height="20" rx="10" fill="#1f2b26"/>
+    <rect x="496" y="810" width="52" height="20" rx="10" fill="#1f2b26"/>
+
+    <path d="M438 536 q0 -38 44 -38 h18 q44 0 44 38 l10 216 q2 24 -24 24 h-78 q-26 0 -24 -24 z" fill="url(#coat)"/>
+    <path d="M486 500 v240" stroke="#1e3a2b" stroke-width="5" opacity="0.35"/>
+    <circle cx="486" cy="556" r="5" fill="#f0bb5c"/>
+    <circle cx="486" cy="600" r="5" fill="#f0bb5c"/>
+
+    <!-- arm holding the pass -->
+    <path d="M444 552 q-34 66 -12 120" fill="none" stroke="#2f5d4a" stroke-width="30" stroke-linecap="round"/>
+    <circle cx="436" cy="682" r="17" fill="#7a5238"/>
+
+    <!-- arm to the child -->
+    <path d="M534 556 q40 52 50 74" fill="none" stroke="#2f5d4a" stroke-width="26" stroke-linecap="round"/>
+
+    <!-- head -->
+    <rect x="470" y="462" width="32" height="34" rx="14" fill="#6f452e"/>
+    <circle cx="486" cy="440" r="42" fill="#8a5c3f"/>
+    <path d="M444 434 q-4 -44 42 -44 q46 0 42 44 q-12 -22 -42 -22 q-30 0 -42 22 z" fill="#241c17"/>
+    <circle cx="470" cy="446" r="3.4" fill="#241c17"/>
+    <circle cx="502" cy="446" r="3.4" fill="#241c17"/>
+    <path d="M476 462 q10 8 20 0" fill="none" stroke="#241c17" stroke-width="3.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- child -->
+  <g>
+    <ellipse cx="626" cy="830" rx="66" ry="14" fill="#22402f" opacity="0.12"/>
+    <rect x="604" y="724" width="30" height="86" rx="14" fill="#3a4a42"/>
+    <rect x="640" y="724" width="30" height="86" rx="14" fill="#33413a"/>
+    <rect x="598" y="802" width="44" height="18" rx="9" fill="#232f29"/>
+    <rect x="636" y="802" width="44" height="18" rx="9" fill="#232f29"/>
+
+    <path d="M592 608 q0 -34 38 -34 h10 q38 0 38 34 l8 126 q2 22 -22 22 h-58 q-24 0 -22 -22 z" fill="url(#jacket)"/>
+    <path d="M626 578 v172" stroke="#c88a26" stroke-width="4" opacity="0.5"/>
+
+    <!-- backpack -->
+    <rect x="566" y="596" width="34" height="86" rx="16" fill="#3c6f56"/>
+    <path d="M578 596 q0 -18 14 -18" fill="none" stroke="#3c6f56" stroke-width="9" stroke-linecap="round"/>
+
+    <!-- reaching hand -->
+    <path d="M592 620 q-16 6 -30 -4" fill="none" stroke="#e3a338" stroke-width="22" stroke-linecap="round"/>
+    <circle cx="556" cy="614" r="13" fill="#8a5c3f"/>
+
+    <!-- head -->
+    <rect x="616" y="546" width="24" height="26" rx="11" fill="#6f452e"/>
+    <circle cx="626" cy="528" r="33" fill="#8a5c3f"/>
+    <path d="M594 522 q-4 -34 32 -34 q36 0 32 34 q-10 -16 -32 -16 q-22 0 -32 16 z" fill="#241c17"/>
+    <circle cx="614" cy="532" r="3" fill="#241c17"/>
+    <circle cx="638" cy="532" r="3" fill="#241c17"/>
+    <path d="M618 544 q8 6 16 0" fill="none" stroke="#241c17" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- gate pass card -->
+  <g transform="rotate(-7 210 700)" filter="url(#lift)">
+    <rect x="118" y="586" width="184" height="228" rx="24" fill="url(#card)" stroke="#e6ddca" stroke-width="2"/>
+    <g fill="#2f5d4a">
+      <rect x="140" y="610" width="42" height="42" rx="8" fill="none" stroke="#2f5d4a" stroke-width="8"/>
+      <rect x="151" y="621" width="20" height="20" rx="3"/>
+      <rect x="238" y="610" width="42" height="42" rx="8" fill="none" stroke="#2f5d4a" stroke-width="8"/>
+      <rect x="249" y="621" width="20" height="20" rx="3"/>
+      <rect x="140" y="704" width="42" height="42" rx="8" fill="none" stroke="#2f5d4a" stroke-width="8"/>
+      <rect x="151" y="715" width="20" height="20" rx="3"/>
+      <rect x="196" y="610" width="10" height="10" rx="2"/>
+      <rect x="212" y="626" width="10" height="10" rx="2"/>
+      <rect x="196" y="642" width="10" height="10" rx="2"/>
+      <rect x="212" y="658" width="10" height="10" rx="2"/>
+      <rect x="196" y="674" width="10" height="10" rx="2"/>
+      <rect x="228" y="674" width="10" height="10" rx="2"/>
+      <rect x="244" y="690" width="10" height="10" rx="2"/>
+      <rect x="196" y="706" width="10" height="10" rx="2"/>
+      <rect x="212" y="722" width="10" height="10" rx="2"/>
+      <rect x="228" y="706" width="10" height="10" rx="2"/>
+      <rect x="244" y="722" width="10" height="10" rx="2"/>
+      <rect x="244" y="738" width="10" height="10" rx="2"/>
+    </g>
+    <rect x="140" y="764" width="140" height="26" rx="13" fill="#eef2e6"/>
+    <rect x="152" y="774" width="72" height="7" rx="3.5" fill="#8aa694"/>
+    <circle cx="266" cy="777" r="7" fill="#e3a338"/>
+  </g>
+
+  <!-- verified badge -->
+  <g filter="url(#soft)">
+    <circle cx="330" cy="640" r="36" fill="#4c9a6a"/>
+    <path d="M314 640 l11 11 l21 -23" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- small leaves -->
+  <g fill="#9dba97" opacity="0.75">
+    <path d="M1088 866 q22 -30 52 -26 q-8 30 -40 34 q-8 0 -12 -8 z"/>
+    <path d="M1042 886 q16 -22 38 -18 q-6 22 -30 25 q-6 0 -8 -7 z"/>
+    <path d="M96 856 q20 -26 46 -22 q-6 26 -35 30 q-8 0 -11 -8 z"/>
+  </g>
+</svg>

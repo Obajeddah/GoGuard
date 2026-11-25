@@ -46,7 +46,9 @@ function readRecord(): RememberRecord | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const r = JSON.parse(raw) as RememberRecord;
-    return (r.mode === "remember" || r.mode === "session") && typeof r.until === "number" ? r : null;
+    return (r.mode === "remember" || r.mode === "session") && typeof r.until === "number"
+      ? r
+      : null;
   } catch {
     return null;
   }
@@ -68,7 +70,8 @@ export function saveRememberChoice(remember: boolean) {
 export function sessionShouldEnd(): boolean {
   const record = readRecord();
   if (!record) return false;
-  const markersSupported = (record as RememberRecord & { markersSupported?: boolean }).markersSupported !== false;
+  const markersSupported =
+    (record as RememberRecord & { markersSupported?: boolean }).markersSupported !== false;
   return shouldEndSession(record, Date.now(), { aliveMarker: hasAliveCookie(), markersSupported });
 }
 

@@ -16,9 +16,15 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — GoGuard" },
-      { name: "description", content: "Sign in to GoGuard as a school administrator or member of gate staff." },
+      {
+        name: "description",
+        content: "Sign in to GoGuard as a school administrator or member of gate staff.",
+      },
       { property: "og:title", content: "Sign in — GoGuard" },
-      { property: "og:description", content: "Sign in to GoGuard as a school administrator or member of gate staff." },
+      {
+        property: "og:description",
+        content: "Sign in to GoGuard as a school administrator or member of gate staff.",
+      },
     ],
   }),
   component: AuthPage,
@@ -75,7 +81,13 @@ function AuthPage() {
           </p>
           <form onSubmit={onSignIn} className="mt-6 space-y-4">
             <Field label="Email">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
             </Field>
             <Field label="Password">
               <Input
@@ -87,16 +99,28 @@ function AuthPage() {
               />
             </Field>
             <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-              <Checkbox checked={remember} onCheckedChange={(v) => setRemember(v === true)} className="size-5" />
+              <Checkbox
+                checked={remember}
+                onCheckedChange={(v) => setRemember(v === true)}
+                className="size-5"
+              />
               Keep me signed in for 90 days
             </label>
-            {error && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+            {error && (
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
             <Button type="submit" size="lg" className="w-full" disabled={busy}>
               {busy && <Loader2 className="animate-spin" />} Sign in
             </Button>
           </form>
           <div className="mt-4 flex justify-between text-sm">
-            <button type="button" onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              onClick={() => setMode("forgot")}
+              className="text-muted-foreground hover:text-foreground"
+            >
               Forgot password?
             </button>
             <Link to="/signup" className="font-medium text-primary">
@@ -107,12 +131,23 @@ function AuthPage() {
       ) : (
         <>
           <h1 className="text-3xl font-bold">Reset your password</h1>
-          <p className="mt-1 text-muted-foreground">Enter your email and we'll send you a link to choose a new one.</p>
+          <p className="mt-1 text-muted-foreground">
+            Enter your email and we'll send you a link to choose a new one.
+          </p>
           <form onSubmit={onForgot} className="mt-6 space-y-4">
             <Field label="Email">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </Field>
-            {notice && <p className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">{notice}</p>}
+            {notice && (
+              <p className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">
+                {notice}
+              </p>
+            )}
             <Button type="submit" size="lg" className="w-full" disabled={busy}>
               {busy && <Loader2 className="animate-spin" />} Send reset link
             </Button>

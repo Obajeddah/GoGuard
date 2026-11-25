@@ -7,7 +7,9 @@ const reference = `gp_${"a".repeat(32)}`;
 describe("Paystack webhook body", () => {
   it("rejects malformed JSON and malformed charge payloads", () => {
     expect(parsePaystackEvent("not json").kind).toBe("bad");
-    expect(parsePaystackEvent(JSON.stringify({ event: "charge.success", data: { reference } })).kind).toBe("bad");
+    expect(
+      parsePaystackEvent(JSON.stringify({ event: "charge.success", data: { reference } })).kind,
+    ).toBe("bad");
   });
   it("acknowledges unrelated events without settling", () => {
     expect(parsePaystackEvent(JSON.stringify({ event: "ping", data: {} })).kind).toBe("ignore");

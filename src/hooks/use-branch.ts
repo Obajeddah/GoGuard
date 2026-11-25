@@ -34,7 +34,8 @@ export function useBranch() {
   const branches = me?.branches ?? [];
   const canSwitch = can(access, "switch_branch") && branches.length > 1;
   // Locked staff always see their branch; HQ sees the chosen one (if it still exists) or all.
-  const branchId = me?.branchId ?? (canSwitch && branches.some((b) => b.id === stored) ? stored : null);
+  const branchId =
+    me?.branchId ?? (canSwitch && branches.some((b) => b.id === stored) ? stored : null);
   const branch = branches.find((b) => b.id === branchId) ?? null;
   return {
     /** null = all branches the user can see. */
@@ -49,6 +50,9 @@ export function useBranch() {
 }
 
 /** Narrow a query to the selected branch (no-op for "All branches"). */
-export function inBranch<Q extends { eq: (col: string, v: string) => Q }>(q: Q, branchId: string | null): Q {
+export function inBranch<Q extends { eq: (col: string, v: string) => Q }>(
+  q: Q,
+  branchId: string | null,
+): Q {
   return branchId ? q.eq("branch_id", branchId) : q;
 }

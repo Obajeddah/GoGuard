@@ -7,7 +7,13 @@ const driver = { isAdmin: false, isBus: true, transport: true };
 
 describe("Gate staff access", () => {
   it("lets gate staff open Live, Students, Scanner, Reports and Attendance", () => {
-    expect(pagesFor(guard)).toEqual(["/dashboard", "/members", "/scanner", "/reports", "/attendance"]);
+    expect(pagesFor(guard)).toEqual([
+      "/dashboard",
+      "/members",
+      "/scanner",
+      "/reports",
+      "/attendance",
+    ]);
   });
   it("hides Settings and Fleet from gate staff", () => {
     expect(pagesFor({ ...guard, transport: true })).not.toContain("/settings");
@@ -61,7 +67,7 @@ describe("Transport package", () => {
   });
 });
 
- describe("Bus location source", () => {
+describe("Bus location source", () => {
   it("allows only a bus login to send location", () => {
     expect(sendsBusLocation({ isAdmin: false, isBus: true })).toBe(true);
     expect(sendsBusLocation({ isAdmin: true, isBus: true })).toBe(false);

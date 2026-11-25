@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { kmh, needsGuardianCheck, nextAction, pupilStates, shouldSendPoint, tripProgress } from "@/lib/bus";
+import {
+  kmh,
+  needsGuardianCheck,
+  nextAction,
+  pupilStates,
+  shouldSendPoint,
+  tripProgress,
+} from "@/lib/bus";
 import { enqueue, sendOrder, type QueueItem } from "@/lib/bus-offline";
 import { checkPass } from "@/lib/pass-check";
 
@@ -38,7 +45,13 @@ describe("Bus manifest", () => {
         { member_id: "b", status: "boarded", timestamp: t(2) },
       ],
     );
-    expect(tripProgress(states)).toEqual({ total: 4, waiting: 2, onboard: 1, dropped: 1, percent: 25 });
+    expect(tripProgress(states)).toEqual({
+      total: 4,
+      waiting: 2,
+      onboard: 1,
+      dropped: 1,
+      percent: 25,
+    });
   });
   it("offers Board, then Drop off, then nothing", () => {
     expect(nextAction("waiting")).toBe("boarded");
@@ -67,7 +80,19 @@ describe("Bus location", () => {
 
 describe("Offline queue", () => {
   it("keeps emergencies when trimming points and sends them before ride end", () => {
-    const emergency: QueueItem = { kind: "emergency", id: "help", emergency: { client_id: "help", org_id: "o", bus_id: "b", trip_id: "t", raised_by: "u", lat: null, lng: null } };
+    const emergency: QueueItem = {
+      kind: "emergency",
+      id: "help",
+      emergency: {
+        client_id: "help",
+        org_id: "o",
+        bus_id: "b",
+        trip_id: "t",
+        raised_by: "u",
+        lat: null,
+        lng: null,
+      },
+    };
     const end: QueueItem = { kind: "trip_end", id: "end", tripId: "t", ended_at: t(5) };
     const queue = enqueue(enqueue([end], emergency, 0), emergency, 0);
     expect(queue).toHaveLength(2);
@@ -76,7 +101,16 @@ describe("Offline queue", () => {
   const point = (id: string): QueueItem => ({
     kind: "point",
     id,
-    point: { client_id: id, org_id: "o", trip_id: "t", lat: 0, lng: 0, speed: null, heading: null, recorded_at: t(0) },
+    point: {
+      client_id: id,
+      org_id: "o",
+      trip_id: "t",
+      lat: 0,
+      lng: 0,
+      speed: null,
+      heading: null,
+      recorded_at: t(0),
+    },
   });
   it("never stores the same item twice", () => {
     const q = enqueue(enqueue([], point("1")), point("1"));
@@ -92,25 +126,47 @@ describe("Offline queue", () => {
     const start: QueueItem = {
       kind: "trip_start",
       id: "s",
-      trip: { id: "t", org_id: "o", bus_id: "b", direction: "to_school", started_by: "u", started_at: t(0) },
+      trip: {
+        id: "t",
+        org_id: "o",
+        bus_id: "b",
+        direction: "to_school",
+        started_by: "u",
+        started_at: t(0),
+      },
     };
-    expect(sendOrder([end, point("p"), start]).map((x) => x.kind)).toEqual(["trip_start", "point", "trip_end"]);
+    expect(sendOrder([end, point("p"), start]).map((x) => x.kind)).toEqual([
+      "trip_start",
+      "point",
+      "trip_end",
+    ]);
   });
 });
 
 describe("Strict QR passes", () => {
   const record = { unique_qr_hash: "h1", member_id: "child-1", org_id: "school-1" };
   it("accepts a pass only for its own school and child", () => {
-    expect(checkPass("h1", record, { orgId: "school-1", memberIds: ["child-1"] })).toEqual({ ok: true });
+    expect(checkPass("h1", record, { orgId: "school-1", memberIds: ["child-1"] })).toEqual({
+      ok: true,
+    });
   });
   it("rejects a pass from another school", () => {
-    expect(checkPass("h1", record, { orgId: "school-2" })).toEqual({ ok: false, reason: "other_school" });
+    expect(checkPass("h1", record, { orgId: "school-2" })).toEqual({
+      ok: false,
+      reason: "other_school",
+    });
   });
   it("rejects a valid pass shown for a different child", () => {
-    expect(checkPass("h1", record, { orgId: "school-1", memberIds: ["child-2"] })).toEqual({ ok: false, reason: "other_child" });
+    expect(checkPass("h1", record, { orgId: "school-1", memberIds: ["child-2"] })).toEqual({
+      ok: false,
+      reason: "other_child",
+    });
   });
   it("rejects an old code that no longer matches the record", () => {
-    expect(checkPass("old", record, { orgId: "school-1" })).toEqual({ ok: false, reason: "unknown" });
+    expect(checkPass("old", record, { orgId: "school-1" })).toEqual({
+      ok: false,
+      reason: "unknown",
+    });
     expect(checkPass("h1", null, { orgId: "school-1" })).toEqual({ ok: false, reason: "unknown" });
   });
 });
@@ -128,19 +184,40 @@ describe("Bus parents", () => {
     const place = placeLabel({ suburb: "Egbe", town: "Ikotun", county: "Alimosho" });
     expect(place).toBe("Egbe, Ikotun");
     const now = Date.UTC(2026, 10, 2, 7, 10);
-    expect(lastSeenText(place, new Date(now - 3 * 60_000).toISOString(), now)).toBe("Last seen at Egbe, Ikotun · 3 minutes ago");
-    expect(lastSeenText(null, new Date(now - 30_000).toISOString(), now)).toBe("Last seen · just now");
+    expect(lastSeenText(place, new Date(now - 3 * 60_000).toISOString(), now)).toBe(
+      "Last seen at Egbe, Ikotun · 3 minutes ago",
+    );
+    expect(lastSeenText(null, new Date(now - 30_000).toISOString(), now)).toBe(
+      "Last seen · just now",
+    );
   });
   it("get 'Not expecting this?' (calls the school) and 'Where is my child?' in every ride email", async () => {
     const { rideEmail } = await import("@/lib/ride-email");
-    const base = { childName: "Bolu", orgName: "Greenfield", emergencyPhone: "+234 801 234 5678", trackToken: "abc", siteUrl: "https://gp.app/" };
-    const boarded = rideEmail({ ...base, kind: "pupil_boarded", message: "Bolu boarded Bus 03 at 7:02 AM." });
+    const base = {
+      childName: "Bolu",
+      orgName: "Greenfield",
+      emergencyPhone: "+234 801 234 5678",
+      trackToken: "abc",
+      siteUrl: "https://gp.app/",
+    };
+    const boarded = rideEmail({
+      ...base,
+      kind: "pupil_boarded",
+      message: "Bolu boarded Bus 03 at 7:02 AM.",
+    });
     expect(boarded.links).toEqual([
       { label: "Not expecting this pick-up? Call the school", href: "tel:+2348012345678" },
       { label: "Where is my child?", href: "https://gp.app/bus/abc" },
     ]);
-    const dropped = rideEmail({ ...base, kind: "pupil_dropped_off", message: "Bolu arrived at school." });
-    expect(dropped.links.map((l) => l.label)).toEqual(["Not expecting this drop-off? Call the school", "Where is my child?"]);
+    const dropped = rideEmail({
+      ...base,
+      kind: "pupil_dropped_off",
+      message: "Bolu arrived at school.",
+    });
+    expect(dropped.links.map((l) => l.label)).toEqual([
+      "Not expecting this drop-off? Call the school",
+      "Where is my child?",
+    ]);
   });
 });
 
@@ -172,9 +249,17 @@ describe("Drop all at school", () => {
       { id: "g1", name: "Aunt", email: "aunt@x.com", receive_general_notifications: false },
       { id: "g2", name: "Uncle", email: "uncle@x.com", receive_general_notifications: true },
     ];
-    const boarded = busRideRecipients({ parentEmail: "mum@x.com", handoverGuardianId: null, guardians });
+    const boarded = busRideRecipients({
+      parentEmail: "mum@x.com",
+      handoverGuardianId: null,
+      guardians,
+    });
     expect(boarded.map((r) => r.email)).toEqual(["mum@x.com", "uncle@x.com"]);
-    const dropped = busRideRecipients({ parentEmail: "mum@x.com", handoverGuardianId: "g1", guardians });
+    const dropped = busRideRecipients({
+      parentEmail: "mum@x.com",
+      handoverGuardianId: "g1",
+      guardians,
+    });
     expect(dropped.map((r) => r.email)).toEqual(["mum@x.com", "aunt@x.com", "uncle@x.com"]);
   });
 });

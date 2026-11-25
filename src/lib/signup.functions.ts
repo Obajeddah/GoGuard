@@ -13,8 +13,12 @@ const schema = z.object({
 
 /** Public sign-up settings: the Cloudflare Turnstile site key (public), or null when captcha isn't set up. */
 export const getSignupConfig = createServerFn({ method: "GET" }).handler(async () => ({
-  turnstileSiteKey: captchaConfigured(process.env["TURNSTILE_SITE_KEY"], process.env["TURNSTILE_SECRET_KEY"])
-    ? process.env["TURNSTILE_SITE_KEY"] : null,
+  turnstileSiteKey: captchaConfigured(
+    process.env["TURNSTILE_SITE_KEY"],
+    process.env["TURNSTILE_SECRET_KEY"],
+  )
+    ? process.env["TURNSTILE_SITE_KEY"]
+    : null,
 }));
 
 async function captchaOk(token: string): Promise<boolean> {
@@ -42,37 +46,44 @@ async function captchaOk(token: string): Promise<boolean> {
  */
 export const checkOrgEmail = createServerFn({ method: "POST" })
   .validator((input: unknown) => schema.parse(input))
-  .handler(async ({ data }): Promise<{ ok: true; ticket: string } | { ok: false; error: string; captcha?: boolean }> => {
-    if (!(await captchaOk(data.captchaToken)))
-      return { ok: false, error: "Please complete the security check.", captcha: true };
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true; ticket: string } | { ok: false; error: string; captcha?: boolean }> => {
+      if (!(await captchaOk(data.captchaToken)))
+        return { ok: false, error: "Please complete the security check.", captcha: true };
 
-    const policyError = orgEmailPolicyError(data.email, data.type);
-    if (policyError) return { ok: false, error: policyError };
+      const policyError = orgEmailPolicyError(data.email, data.type);
+      if (policyError) return { ok: false, error: policyError };
 
-    const domain = emailDomain(data.email);
-    try {
-      const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`, {
-        headers: { accept: "application/dns-json" },
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { Status?: number; Answer?: unknown[] };
-        if (json.Status === 3 || !json.Answer || json.Answer.length === 0) {
-          return {
-            ok: false,
-            error: `We couldn't find a mail server for @${domain}. Check the address or use your organization's official email.`,
-          };
+      const domain = emailDomain(data.email);
+      try {
+        const res = await fetch(
+          `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`,
+          {
+            headers: { accept: "application/dns-json" },
+          },
+        );
+        if (res.ok) {
+          const json = (await res.json()) as { Status?: number; Answer?: unknown[] };
+          if (json.Status === 3 || !json.Answer || json.Answer.length === 0) {
+            return {
+              ok: false,
+              error: `We couldn't find a mail server for @${domain}. Check the address or use your organization's official email.`,
+            };
+          }
         }
+      } catch {
+        // DNS lookup unavailable — fall back to the policy check only.
       }
-    } catch {
-      // DNS lookup unavailable — fall back to the policy check only.
-    }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: ticket, error } = await supabaseAdmin
-      .from("signup_tickets")
-      .insert({ email: data.email.toLowerCase(), plan: signupPlan(data.plan) })
-      .select("id")
-      .single();
-    if (error || !ticket) return { ok: false, error: "Something went wrong. Please try again." };
-    return { ok: true, ticket: ticket.id };
-  });
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: ticket, error } = await supabaseAdmin
+        .from("signup_tickets")
+        .insert({ email: data.email.toLowerCase(), plan: signupPlan(data.plan) })
+        .select("id")
+        .single();
+      if (error || !ticket) return { ok: false, error: "Something went wrong. Please try again." };
+      return { ok: true, ticket: ticket.id };
+    },
+  );

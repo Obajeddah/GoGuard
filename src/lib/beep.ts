@@ -3,7 +3,9 @@ let ctx: AudioContext | null = null;
 /** Short audio feedback for the gate scanner. */
 export function beep(kind: "scan" | "success" | "error") {
   try {
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AC =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
     ctx ??= new AC();
     const notes = kind === "success" ? [880, 1320] : kind === "error" ? [220, 160] : [1046];

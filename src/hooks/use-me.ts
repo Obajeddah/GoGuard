@@ -47,22 +47,27 @@ export const meQueryOptions = queryOptions({
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return null;
-    const [{ data: profile }, { data: roles }, { data: branches }, { data: request }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "full_name, branch_id, organization:organizations(id, name, type, admin_email, emergency_phone, trial_ends_at, paid_until, plan, classes)",
-        )
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase
-        .from("branches")
-        .select("id, name, address, is_main, registration_token, guard_invite_token")
-        .order("is_main", { ascending: false })
-        .order("name"),
-      supabase.from("staff_requests").select("full_name, status").eq("user_id", user.id).maybeSingle(),
-    ]);
+    const [{ data: profile }, { data: roles }, { data: branches }, { data: request }] =
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "full_name, branch_id, organization:organizations(id, name, type, admin_email, emergency_phone, trial_ends_at, paid_until, plan, classes)",
+          )
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+        supabase
+          .from("branches")
+          .select("id, name, address, is_main, registration_token, guard_invite_token")
+          .order("is_main", { ascending: false })
+          .order("name"),
+        supabase
+          .from("staff_requests")
+          .select("full_name, status")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
     return {
       userId: user.id,
       email: user.email ?? "",

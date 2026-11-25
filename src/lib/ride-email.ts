@@ -34,10 +34,15 @@ export function rideEmail(input: {
   const links: RideEmailLink[] = [];
   if (input.emergencyPhone?.trim())
     links.push({
-      label: boarded ? "Not expecting this pick-up? Call the school" : "Not expecting this drop-off? Call the school",
+      label: boarded
+        ? "Not expecting this pick-up? Call the school"
+        : "Not expecting this drop-off? Call the school",
       href: telHref(input.emergencyPhone),
     });
-  links.push({ label: "Where is my child?", href: `${input.siteUrl.replace(/\/$/, "")}${busTrackPath(input.trackToken)}` });
+  links.push({
+    label: "Where is my child?",
+    href: `${input.siteUrl.replace(/\/$/, "")}${busTrackPath(input.trackToken)}`,
+  });
   return {
     subject: boarded ? `${input.childName} is on the bus` : `${input.childName} is off the bus`,
     message: input.message,

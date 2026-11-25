@@ -1,10 +1,12 @@
 # GatePass roadmap
 
 ## Current updates
+
 - [x] Audit unfinished app flows and security checks; email setup will be handled by the user.
 - [ ] Prepare clean source ZIP only after user reviews the diagnosis and confirms.
 
 ## Audit findings to address before launch
+
 - [ ] Signup: pass the issued signup ticket to account creation; wire plan choice and Turnstile into the form; fail closed when captcha is not configured.
 - [ ] Payments: settle payment and entitlement atomically; currently payment can be marked successful before the school's entitlement update succeeds.
 - [ ] Integrate branch management, branch administrator/guard invites and four-digit edit-code controls into the admin screens.
@@ -29,6 +31,7 @@
 - [ ] Email each guardian their pass link after registration — blocked: same
 
 ## From second brief (GatePass overview)
+
 - [x] ~~Landing: pricing tiers Starter ₦7,500/mo, Pro ₦15,000/mo~~ replaced by ₦3,800/mo or ₦38,000/yr
 - [x] Signup as multi-step onboarding
 - [x] Reports: quick Today / This month presets; export opens in Excel
@@ -36,6 +39,7 @@
 - [x] Palette leans slate / emerald green
 
 ## Third brief (school-first polish)
+
 - [x] Remove decorative badge/pill tags; professional copy pass across the app
 - [x] Landing: school-first, mentions estate + industry tools; header shows only Register / Sign in
 - [x] ~~Register and Sign in pages with School / Industry / Estate tabs~~ replaced: schools only for now
@@ -45,6 +49,7 @@
 - [x] School-only focus: remove industry/estate sign-up tabs and landing section (estate/industry kept internally for later)
 
 ## Fourth brief (subscription)
+
 - [x] Pricing: ₦3,800/month or ₦38,000/year (one-time); replace Starter/Pro on home page
 - [x] 14-day free trial from sign-up; show days left to admins
 - [x] After trial unpaid: block spreadsheet export and halt all gate emails (export done; emails will check this rule once sending is built)
@@ -54,17 +59,20 @@
 - [ ] Set live webhook URL in Paystack — blocked: app must be published first
 
 ## Fifth brief (lean site)
+
 - [x] Home page: short, to the point — what it does, Register, Check our pricing (no prices, no how-to)
 - [x] Separate Pricing page; every plan shows the 14-day free trial
 - [x] Keep database portable (PostgreSQL) for future self-hosting
 
 ## Sixth brief (classes + duplicates)
+
 - [x] School ticks the classes it offers (Settings); preset Nigerian classes + custom
 - [x] Parent registration form: class is a required choice from the school's classes
 - [x] Students page: group/filter by class; show students with no class
 - [x] "Possible duplicate" flag when the same child name appears more than once, so the school can cross-check before deleting
 
 ## Seventh brief (2027 home page, strict passes, school bus)
+
 - [x] Home page: modern glassmorphic design, same short copy
 - [x] Every QR pass works only for its own guardian, child and school; changing the guardian's name, photo or child issues a new pass
 - [x] Transport package toggle in Settings unlocks a Fleet tab
@@ -77,6 +85,7 @@
 - [x] Live fleet map with speed, progress and onboard counts
 
 ## Eighth brief (bus pupils)
+
 - [x] Parent form: "My child takes the school bus" tick (only when the school has transport)
 - [x] Fleet → Bus pupils: ticked pupils wait in "Needs a bus" until the school puts them on a bus with its crew
 - [x] Ride update notice per pupil boarded / dropped off (none on Start ride)
@@ -85,6 +94,7 @@
 - [x] Bus app: Start ride only starts the ride; a separate Onboard pupils button opens the list
 
 ## Ninth brief (bus parents by email)
+
 - [x] Bus app: "Drop all at school" for morning pick-up rides before noon only; afternoon drop-offs stay one by one
 - [x] Start / End ride only switch the bus location on and off; no notices, no explanation text
 - [x] Every ride email carries two support links: "Not expecting this?" (school emergency line) and "Where is my child?"
@@ -93,6 +103,7 @@
 - [ ] Send the ride emails — blocked: needs an email sender domain
 
 ## Tenth brief (attendance, plans, Fleet access)
+
 - [x] Automatic attendance for every class from gate scans and bus rides; admin downloads all classes to one Excel file
 - [x] Home page: three tick cards again (Verified guardians. / QR gate passes. / Instant parent alerts.)
 - [x] Clear one-line descriptions for Gate passes, School bus, Classes, Reports
@@ -103,10 +114,12 @@
 - [ ] Push to GitHub — waiting on the user to create and connect their GitHub account
 
 ## Eleventh brief (polish)
+
 - [x] Home page: smaller, sleeker tick cards
 - [x] Browser tab icon uses the GatePass logo
 
 ## Eleventh brief (bus login, branches, security)
+
 - [ ] Fleet map: "Open in Google Maps" — admin's location to the bus's live location
 - [ ] One login per bus (replaces personal driver/attendant logins); set when adding a bus; admin can change password or deactivate
 - [ ] Only the bus login's device sends location; admin opening the bus app never shares location

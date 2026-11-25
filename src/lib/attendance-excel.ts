@@ -24,7 +24,12 @@ function sheetNames(labels: string[]): string[] {
 
 const shortDay = (iso: string) => {
   const d = new Date(`${iso}T00:00:00Z`);
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  return d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
 };
 
 /** A workbook with a summary sheet and one sheet per class. */
@@ -66,7 +71,14 @@ export function attendanceSheets(input: {
     sheet: names[i] ?? `Class ${i + 1}`,
     stickyRowsCount: 1,
     stickyColumnsCount: 1,
-    columns: [{ width: 28 }, ...days.map(() => ({ width: 11 })), { width: 9 }, { width: 9 }, { width: 9 }, { width: 13 }],
+    columns: [
+      { width: 28 },
+      ...days.map(() => ({ width: 11 })),
+      { width: 9 },
+      { width: 9 },
+      { width: 9 },
+      { width: 13 },
+    ],
     data: [
       [
         { value: "Student", ...HEAD },
@@ -79,7 +91,10 @@ export function attendanceSheets(input: {
       ...(c.students.length
         ? c.students.map((s) => [
             s.name,
-            ...days.map((d) => ({ ...MARK_CELL[s.marks[d] ?? "absent"], align: "center" as const })),
+            ...days.map((d) => ({
+              ...MARK_CELL[s.marks[d] ?? "absent"],
+              align: "center" as const,
+            })),
             s.present,
             s.byBus,
             s.absent,

@@ -24,6 +24,8 @@ describe("gate email", () => {
     expect(mail.html).toContain('href="tel:+2348012345678"');
   });
   it("uses the check-out wording for departures", () => {
-    expect(gateEmail({ ...input, action: "check_out" }).subject).toContain("left Greenfield Academy");
+    expect(gateEmail({ ...input, action: "check_out" }).subject).toContain(
+      "left Greenfield Academy",
+    );
   });
 });

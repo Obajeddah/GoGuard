@@ -9,8 +9,7 @@ export interface OutgoingEmail {
 
 export function emailConfigured(): boolean {
   return Boolean(
-    process.env["EMAIL_FROM"] &&
-      (process.env["RESEND_API_KEY"] || process.env["EMAIL_API_URL"]),
+    process.env["EMAIL_FROM"] && (process.env["RESEND_API_KEY"] || process.env["EMAIL_API_URL"]),
   );
 }
 
@@ -42,6 +41,8 @@ export async function sendEmail(mail: OutgoingEmail): Promise<void> {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`Email provider rejected the message (${response.status}): ${detail.slice(0, 300)}`);
+    throw new Error(
+      `Email provider rejected the message (${response.status}): ${detail.slice(0, 300)}`,
+    );
   }
 }

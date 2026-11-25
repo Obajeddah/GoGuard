@@ -1,13 +1,30 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BarChart3, Bus, Check, CheckCircle2, QrCode, Quote, Users } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  Bus,
+  Check,
+  CheckCircle2,
+  QrCode,
+  Quote,
+  Users,
+} from "lucide-react";
 
-import heroAsset from "@/assets/hero-gate.png.asset.json";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { TRIAL_DAYS } from "@/lib/billing";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
-const heroImg = heroAsset.url;
+// The hero photo is a Lovable-hosted asset (`hero-gate.png.asset.json`) and its
+// `/__l5e/...` URL only resolves inside Lovable, so it 404s everywhere else.
+// `public/hero-gate.svg` ships with the repo to keep the layout intact; drop a
+// real photo at `public/hero-gate.png` and point this constant at it to swap in.
+const heroImg = "/hero-gate.svg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,7 +32,8 @@ export const Route = createFileRoute("/")({
       { title: "GoGuard — Safe school drop-off and pick-up" },
       {
         name: "description",
-        content: "Verified guardians, QR gate passes and instant email alerts for school drop-off and pick-up.",
+        content:
+          "Verified guardians, QR gate passes and instant email alerts for school drop-off and pick-up.",
       },
       { property: "og:title", content: "GoGuard — Safe school drop-off and pick-up" },
       {
@@ -32,13 +50,40 @@ export const Route = createFileRoute("/")({
 const POINTS = ["Verified guardians.", "QR gate passes.", "Instant parent alerts."];
 
 const FAQS = [
-  { question: "What does GoGuard do for my school?", answer: "GoGuard brings guardian verification, gate records, automatic class attendance and school transport into one place." },
-  { question: "Do parents need to download an app?", answer: "No. Parents register their child and trusted guardians through the school's link. Each child can have up to four guardians." },
-  { question: "Does GoGuard work when the internet drops?", answer: "The bus app can queue ride records offline and sync them when internet returns. Gate QR verification needs an internet connection before a child is released." },
-  { question: "Which plan includes the free trial?", answer: "Basic Gate includes a 14-day free trial with no payment to start. School Standard and Multi-School Group are paid plans, with no free trial." },
-  { question: "Can we manage school buses and multiple branches?", answer: "School Standard includes up to four buses for one branch. Multi-School Group includes up to six buses and three branches, with an extra-branch add-on." },
-  { question: "How is attendance recorded?", answer: "Attendance is counted automatically from gate scans and bus rides, grouped by class and ready to download to Excel." },
-  { question: "How can our school pay?", answer: "Pay monthly through Paystack using a card, bank transfer or USSD." },
+  {
+    question: "What does GoGuard do for my school?",
+    answer:
+      "GoGuard brings guardian verification, gate records, automatic class attendance and school transport into one place.",
+  },
+  {
+    question: "Do parents need to download an app?",
+    answer:
+      "No. Parents register their child and trusted guardians through the school's link. Each child can have up to four guardians.",
+  },
+  {
+    question: "Does GoGuard work when the internet drops?",
+    answer:
+      "The bus app can queue ride records offline and sync them when internet returns. Gate QR verification needs an internet connection before a child is released.",
+  },
+  {
+    question: "Which plan includes the free trial?",
+    answer:
+      "Basic Gate includes a 14-day free trial with no payment to start. School Standard and Multi-School Group are paid plans, with no free trial.",
+  },
+  {
+    question: "Can we manage school buses and multiple branches?",
+    answer:
+      "School Standard includes up to four buses for one branch. Multi-School Group includes up to six buses and three branches, with an extra-branch add-on.",
+  },
+  {
+    question: "How is attendance recorded?",
+    answer:
+      "Attendance is counted automatically from gate scans and bus rides, grouped by class and ready to download to Excel.",
+  },
+  {
+    question: "How can our school pay?",
+    answer: "Pay monthly through Paystack using a card, bank transfer or USSD.",
+  },
 ];
 
 const FEATURES = [
@@ -68,13 +113,21 @@ function Landing() {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <div className="bg-aurora pointer-events-none absolute inset-0 -z-10" aria-hidden />
-      <div className="grid-lines pointer-events-none absolute inset-0 -z-10 opacity-40 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" aria-hidden />
+      <div
+        className="grid-lines pointer-events-none absolute inset-0 -z-10 opacity-40 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"
+        aria-hidden
+      />
 
       <header className="sticky top-3 z-30 mx-auto mt-3 w-[calc(100%-1.5rem)] max-w-6xl">
         <div className="glass flex h-14 items-center justify-between rounded-full pl-5 pr-2">
           <Brand />
           <nav className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm" className="hidden rounded-full sm:inline-flex">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="hidden rounded-full sm:inline-flex"
+            >
               <Link to="/pricing">Pricing</Link>
             </Button>
             <Button asChild variant="ghost" size="sm" className="rounded-full">
@@ -97,22 +150,35 @@ function Landing() {
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-checkin text-checkin-foreground">
                     <Check className="size-3.5" strokeWidth={3} />
                   </span>
-                  <span className="font-display text-base font-semibold tracking-tight sm:text-lg">{label}</span>
+                  <span className="font-display text-base font-semibold tracking-tight sm:text-lg">
+                    {label}
+                  </span>
                 </li>
               ))}
             </ul>
             <div className="mt-10 flex flex-wrap gap-3">
-              <Button asChild variant="signal" size="lg" className="h-12 rounded-full px-6 text-base shadow-pass">
+              <Button
+                asChild
+                variant="signal"
+                size="lg"
+                className="h-12 rounded-full px-6 text-base shadow-pass"
+              >
                 <Link to="/signup">
                   Register your school <ArrowRight />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="glass h-12 rounded-full px-6 text-base">
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="glass h-12 rounded-full px-6 text-base"
+              >
                 <Link to="/pricing">Check our pricing</Link>
               </Button>
             </div>
             <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-checkin" /> {TRIAL_DAYS}-day free trial. No payment to start.
+              <CheckCircle2 className="size-4 text-checkin" /> {TRIAL_DAYS}-day free trial. No
+              payment to start.
             </p>
           </div>
 
@@ -121,8 +187,8 @@ function Landing() {
               <img
                 src={heroImg}
                 alt="A parent and child at a school gate while staff scan the parent's QR pass"
-                width={1536}
-                height={1024}
+                width={1200}
+                height={960}
                 className="aspect-[5/4] w-full rounded-[1.75rem] object-cover"
               />
             </div>
@@ -178,8 +244,12 @@ function Landing() {
         </section>
 
         <section className="py-14 sm:py-20" aria-labelledby="reviews-title">
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">From the school office</p>
-          <h2 id="reviews-title" className="mt-3 text-3xl font-bold">A little more peace of mind.</h2>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            From the school office
+          </p>
+          <h2 id="reviews-title" className="mt-3 text-3xl font-bold">
+            A little more peace of mind.
+          </h2>
           <figure className="mt-8 max-w-3xl border-l-2 border-signal pl-6 sm:pl-8">
             <Quote className="size-8 text-primary" aria-hidden />
             <blockquote className="mt-4 font-display text-2xl leading-relaxed">
@@ -192,17 +262,30 @@ function Landing() {
           </figure>
         </section>
 
-        <section className="grid gap-8 border-t border-border py-14 sm:py-20 md:grid-cols-[1fr_1.5fr]" aria-labelledby="faq-title">
+        <section
+          className="grid gap-8 border-t border-border py-14 sm:py-20 md:grid-cols-[1fr_1.5fr]"
+          aria-labelledby="faq-title"
+        >
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">A few answers</p>
-            <h2 id="faq-title" className="mt-3 text-3xl font-bold">Frequently asked questions</h2>
-            <Button asChild variant="outline" className="mt-6"><Link to="/pricing">Compare plans <ArrowRight /></Link></Button>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+              A few answers
+            </p>
+            <h2 id="faq-title" className="mt-3 text-3xl font-bold">
+              Frequently asked questions
+            </h2>
+            <Button asChild variant="outline" className="mt-6">
+              <Link to="/pricing">
+                Compare plans <ArrowRight />
+              </Link>
+            </Button>
           </div>
           <Accordion type="single" collapsible>
             {FAQS.map((faq, i) => (
               <AccordionItem key={faq.question} value={`faq-${i}`}>
                 <AccordionTrigger className="gap-4 py-5 text-base">{faq.question}</AccordionTrigger>
-                <AccordionContent className="leading-relaxed text-muted-foreground">{faq.answer}</AccordionContent>
+                <AccordionContent className="leading-relaxed text-muted-foreground">
+                  {faq.answer}
+                </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>

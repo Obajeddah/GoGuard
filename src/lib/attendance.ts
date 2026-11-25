@@ -43,7 +43,12 @@ export interface ClassAttendance {
 
 /** Calendar date (yyyy-MM-dd) in the school's time zone. */
 export function schoolDate(d: Date, tz: string = SCHOOL_TIME_ZONE): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 /** Monday–Friday dates from `from` to `to` (inclusive), never past `today`. */
@@ -102,7 +107,10 @@ function average(rates: (number | null)[]): number | null {
  * Students grouped by class in school order. Every class the school ticked is
  * listed, even with no students, so missing registrations stand out.
  */
-export function attendanceByClass(students: StudentAttendance[], schoolClasses: string[]): ClassAttendance[] {
+export function attendanceByClass(
+  students: StudentAttendance[],
+  schoolClasses: string[],
+): ClassAttendance[] {
   const groups = classGroups(
     students.map((s) => ({ ...s, identifier_code: s.className })),
     schoolClasses,

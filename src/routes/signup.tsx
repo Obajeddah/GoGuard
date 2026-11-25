@@ -60,7 +60,13 @@ function SignupPage() {
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(0);
   const type = TYPE;
-  const [form, setForm] = useState({ orgName: "", emergencyPhone: "", fullName: "", email: "", password: "" });
+  const [form, setForm] = useState({
+    orgName: "",
+    emergencyPhone: "",
+    fullName: "",
+    email: "",
+    password: "",
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -130,8 +136,9 @@ function SignupPage() {
           </div>
           <h1 className="mt-5 text-2xl font-bold">Check your inbox</h1>
           <p className="mt-2 text-muted-foreground">
-            We've sent a verification link to <span className="font-medium text-foreground">{sentTo}</span>. Open it to
-            activate your account, then sign in.
+            We've sent a verification link to{" "}
+            <span className="font-medium text-foreground">{sentTo}</span>. Open it to activate your
+            account, then sign in.
           </p>
           <Button asChild variant="outline" className="mt-6">
             <Link to="/auth">Go to sign in</Link>
@@ -160,13 +167,25 @@ function SignupPage() {
             }}
             className="h-10 w-full rounded-md border bg-background px-3 text-sm"
           >
-            {PLAN_IDS.map((id) => <option key={id} value={id}>{PLANS[id].label} · {formatNaira(PLANS[id].amountNaira)}/month</option>)}
+            {PLAN_IDS.map((id) => (
+              <option key={id} value={id}>
+                {PLANS[id].label} · {formatNaira(PLANS[id].amountNaira)}/month
+              </option>
+            ))}
           </select>
-          <p className="mt-1 text-sm text-muted-foreground">{plan === "basic" ? `${TRIAL_DAYS}-day free trial. No payment needed.` : "No free trial. Payment required to activate this plan."}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {plan === "basic"
+              ? `${TRIAL_DAYS}-day free trial. No payment needed.`
+              : "No free trial. Payment required to activate this plan."}
+          </p>
         </Field>
         <div className="space-y-4">
           <Field label="School name" error={errors["orgName"]}>
-            <Input value={form.orgName} onChange={set("orgName")} placeholder="Greenfield Academy" />
+            <Input
+              value={form.orgName}
+              onChange={set("orgName")}
+              placeholder="Greenfield Academy"
+            />
           </Field>
           <Field
             label="Emergency line"
@@ -196,17 +215,43 @@ function SignupPage() {
             <Input type="email" value={form.email} onChange={set("email")} autoComplete="email" />
           </Field>
           <Field label="Password" hint="At least 8 characters." error={errors["password"]}>
-            <Input type="password" value={form.password} onChange={set("password")} autoComplete="new-password" />
+            <Input
+              type="password"
+              value={form.password}
+              onChange={set("password")}
+              autoComplete="new-password"
+            />
           </Field>
         </div>
 
-        {config.data?.turnstileSiteKey ? <SignupCaptcha key={captchaVersion} siteKey={config.data.turnstileSiteKey} onToken={setCaptchaToken} /> : <p className="text-sm text-destructive">{config.isLoading ? "Loading security check…" : "School registration is temporarily unavailable. Please try again later."}</p>}
+        {config.data?.turnstileSiteKey ? (
+          <SignupCaptcha
+            key={captchaVersion}
+            siteKey={config.data.turnstileSiteKey}
+            onToken={setCaptchaToken}
+          />
+        ) : (
+          <p className="text-sm text-destructive">
+            {config.isLoading
+              ? "Loading security check…"
+              : "School registration is temporarily unavailable. Please try again later."}
+          </p>
+        )}
         {errors["form"] && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{errors["form"]}</p>
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errors["form"]}
+          </p>
         )}
 
-        <Button type="submit" variant="signal" size="lg" className="w-full" disabled={busy || !captchaToken || !config.data?.turnstileSiteKey}>
-          {busy && <Loader2 className="animate-spin" />} {plan === "basic" ? "Start free trial" : "Register school"}
+        <Button
+          type="submit"
+          variant="signal"
+          size="lg"
+          className="w-full"
+          disabled={busy || !captchaToken || !config.data?.turnstileSiteKey}
+        >
+          {busy && <Loader2 className="animate-spin" />}{" "}
+          {plan === "basic" ? "Start free trial" : "Register school"}
         </Button>
         <p className="text-center text-sm text-muted-foreground">
           Already registered?{" "}

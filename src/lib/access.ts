@@ -40,7 +40,8 @@ const GATE_PAGES: AppPage[] = ["/dashboard", "/members", "/scanner", "/reports",
 
 /** Pages in the main app a signed-in user can open. */
 export function pagesFor(a: AccessInput): AppPage[] {
-  if (a.isAdmin) return [...GATE_PAGES, ...(a.transport ? (["/fleet"] as AppPage[]) : []), "/team", "/settings"];
+  if (a.isAdmin)
+    return [...GATE_PAGES, ...(a.transport ? (["/fleet"] as AppPage[]) : []), "/team", "/settings"];
   if (a.isGuard) return GATE_PAGES;
   return [];
 }

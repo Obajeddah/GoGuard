@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,9 +8,11 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+
 - Tenancy: every org-owned table carries `org_id`; RLS scopes reads/writes via `get_user_org_id(auth.uid())` and `has_role()` — never trust a client-sent org id.
 - Roles live in `public.user_roles` (admin | guard | driver | attendant), never on profiles. Org + admin rows are created by the `handle_new_org_admin` auth trigger, which also re-enforces the school-domain email rule.
 - Anonymous flows (parent registration, guardian pass page) go through public server functions in `src/lib/registration.functions.ts`; they validate the link token / 64-char pass hash before using the privileged client.

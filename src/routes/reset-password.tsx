@@ -49,7 +49,12 @@ function ResetPasswordPage() {
       <h1 className="text-3xl font-bold">Set a new password</h1>
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Field label="New password" error={error ?? undefined}>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
         </Field>
         <Button type="submit" size="lg" className="w-full" disabled={busy}>
           {busy && <Loader2 className="animate-spin" />} Update password

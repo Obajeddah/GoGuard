@@ -11,13 +11,22 @@ export function TrialBanner({ org }: { org: NonNullable<Me["org"]> }) {
   if (state.status === "active") return null;
 
   if (state.status === "expired") {
-    const chosen = isPlanId(org.plan) && org.plan !== "basic" && !org.paid_until ? PLANS[org.plan].label : null;
+    const chosen =
+      isPlanId(org.plan) && org.plan !== "basic" && !org.paid_until ? PLANS[org.plan].label : null;
     return (
-      <div role="alert" className="flex flex-wrap items-center gap-3 rounded-2xl bg-destructive p-4 text-destructive-foreground">
+      <div
+        role="alert"
+        className="flex flex-wrap items-center gap-3 rounded-2xl bg-destructive p-4 text-destructive-foreground"
+      >
         <AlertTriangle className="size-5 shrink-0" />
         <p className="min-w-0 flex-1 text-sm">
-          <span className="font-semibold">{chosen ? `Pay to start ${chosen}.` : "Your plan isn't active."}</span>{" "}
-          <span className="opacity-90">Parent emails, downloads, buses and branches are paused until you pay. Scanning still works.</span>
+          <span className="font-semibold">
+            {chosen ? `Pay to start ${chosen}.` : "Your plan isn't active."}
+          </span>{" "}
+          <span className="opacity-90">
+            Parent emails, downloads, buses and branches are paused until you pay. Scanning still
+            works.
+          </span>
         </p>
         <Button asChild size="sm" variant="secondary">
           <Link to="/settings" hash="billing">

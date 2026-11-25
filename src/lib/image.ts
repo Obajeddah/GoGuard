@@ -1,5 +1,9 @@
 /** Resize an image file in the browser to a compact JPEG data URL. */
-export async function resizeImageToDataUrl(file: File, maxSize = 512, quality = 0.82): Promise<string> {
+export async function resizeImageToDataUrl(
+  file: File,
+  maxSize = 512,
+  quality = 0.82,
+): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
   const url = URL.createObjectURL(file);
   try {

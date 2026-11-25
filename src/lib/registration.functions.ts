@@ -95,7 +95,9 @@ export const submitRegistration = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows } = await supabaseAdmin.rpc("get_registration_branch", { _token: data.token });
+    const { data: rows } = await supabaseAdmin.rpc("get_registration_branch", {
+      _token: data.token,
+    });
     const link = rows?.[0];
     const org = link
       ? {

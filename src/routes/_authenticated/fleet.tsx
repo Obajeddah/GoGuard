@@ -11,7 +11,16 @@ import { accessOf, useMe } from "@/hooks/use-me";
 import { useBranch, inBranch } from "@/hooks/use-branch";
 import { billingState } from "@/lib/billing";
 import type { Database } from "@/integrations/supabase/types";
-import { busPupilGroups, busTrackPath, DIRECTION_LABEL, isStale, kmh, pupilStates, tripProgress, type TripDirection } from "@/lib/bus";
+import {
+  busPupilGroups,
+  busTrackPath,
+  DIRECTION_LABEL,
+  isStale,
+  kmh,
+  pupilStates,
+  tripProgress,
+  type TripDirection,
+} from "@/lib/bus";
 import { classGroups } from "@/lib/classes";
 import { createBusLogin, setBusLoginPassword, setBusLoginActive } from "@/lib/staff.functions";
 import { AppShell } from "@/components/app-shell";
@@ -21,7 +30,13 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { MapBus } from "@/components/fleet-map";
 
@@ -59,17 +74,29 @@ function useFleetData(orgId: string) {
   const { data: me } = useMe();
   const enabled = accessOf(me).transport;
   const buses = useQuery({
-    queryKey: ["fleet", "buses", orgId, branchId], enabled,
+    queryKey: ["fleet", "buses", orgId, branchId],
+    enabled,
     queryFn: async (): Promise<BusRow[]> => {
-      const { data, error } = await inBranch(supabase.from("buses").select("*").eq("org_id", orgId).order("bus_number"), branchId);
+      const { data, error } = await inBranch(
+        supabase.from("buses").select("*").eq("org_id", orgId).order("bus_number"),
+        branchId,
+      );
       if (error) throw error;
       return data ?? [];
     },
   });
   const riders = useQuery({
-    queryKey: ["fleet", "riders", orgId, branchId], enabled,
+    queryKey: ["fleet", "riders", orgId, branchId],
+    enabled,
     queryFn: async (): Promise<RiderRow[]> => {
-      const { data, error } = await inBranch(supabase.from("members").select("id, branch_id, full_name, identifier_code, bus_id, uses_bus, bus_track_token").eq("org_id", orgId).order("full_name"), branchId);
+      const { data, error } = await inBranch(
+        supabase
+          .from("members")
+          .select("id, branch_id, full_name, identifier_code, bus_id, uses_bus, bus_track_token")
+          .eq("org_id", orgId)
+          .order("full_name"),
+        branchId,
+      );
       if (error) throw error;
       return data ?? [];
     },
@@ -78,38 +105,91 @@ function useFleetData(orgId: string) {
 }
 
 function showError(error: unknown) {
-  toast.error(error && typeof error === "object" && "message" in error ? String(error.message) : "Something went wrong. Please try again.");
+  toast.error(
+    error && typeof error === "object" && "message" in error
+      ? String(error.message)
+      : "Something went wrong. Please try again.",
+  );
 }
 
 function MapsLink({ lat, lng }: { lat: number; lng: number }) {
-  return <Button asChild variant="outline" size="sm"><a href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`} target="_blank" rel="noopener noreferrer">Open in Google Maps</a></Button>;
+  return (
+    <Button asChild variant="outline" size="sm">
+      <a
+        href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open in Google Maps
+      </a>
+    </Button>
+  );
 }
 
 function Emergencies({ orgId }: { orgId: string }) {
   const { branchId } = useBranch();
   const client = useQueryClient();
   const alerts = useQuery({
-    queryKey: ["fleet", "emergencies", orgId, branchId], refetchInterval: 10_000,
+    queryKey: ["fleet", "emergencies", orgId, branchId],
+    refetchInterval: 10_000,
     queryFn: async () => {
-      const { data, error } = await inBranch(supabase.from("bus_emergencies").select("id, bus_id, created_at, lat, lng, buses(bus_number)").eq("org_id", orgId).is("resolved_at", null).order("created_at", { ascending: false }), branchId);
+      const { data, error } = await inBranch(
+        supabase
+          .from("bus_emergencies")
+          .select("id, bus_id, created_at, lat, lng, buses(bus_number)")
+          .eq("org_id", orgId)
+          .is("resolved_at", null)
+          .order("created_at", { ascending: false }),
+        branchId,
+      );
       if (error) throw error;
       return data ?? [];
     },
   });
   const resolve = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("bus_emergencies").update({ resolved_at: new Date().toISOString() }).eq("id", id);
+      const { error } = await supabase
+        .from("bus_emergencies")
+        .update({ resolved_at: new Date().toISOString() })
+        .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Emergency resolved"); client.invalidateQueries({ queryKey: ["fleet", "emergencies"] }); },
+    onSuccess: () => {
+      toast.success("Emergency resolved");
+      client.invalidateQueries({ queryKey: ["fleet", "emergencies"] });
+    },
     onError: showError,
   });
-  if (alerts.isError) return <p role="alert" className="text-destructive">Could not load bus emergencies.</p>;
-  return <div className="space-y-3">{alerts.data?.map((a) => <section key={a.id} role="alert" className="rounded-2xl border border-destructive bg-card p-4">
-    <h2 className="font-bold text-destructive">Emergency · Bus {a.buses?.bus_number ?? a.bus_id}</h2>
-    <p className="mb-3 text-sm text-muted-foreground">{new Date(a.created_at).toLocaleString()}</p>
-    <div className="flex flex-wrap gap-2">{a.lat != null && a.lng != null && <MapsLink lat={a.lat} lng={a.lng} />}<Button size="sm" disabled={resolve.isPending} onClick={() => resolve.mutate(a.id)}>Mark resolved</Button></div>
-  </section>)}</div>;
+  if (alerts.isError)
+    return (
+      <p role="alert" className="text-destructive">
+        Could not load bus emergencies.
+      </p>
+    );
+  return (
+    <div className="space-y-3">
+      {alerts.data?.map((a) => (
+        <section
+          key={a.id}
+          role="alert"
+          className="rounded-2xl border border-destructive bg-card p-4"
+        >
+          <h2 className="font-bold text-destructive">
+            Emergency · Bus {a.buses?.bus_number ?? a.bus_id}
+          </h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {new Date(a.created_at).toLocaleString()}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {a.lat != null && a.lng != null && <MapsLink lat={a.lat} lng={a.lng} />}
+            <Button size="sm" disabled={resolve.isPending} onClick={() => resolve.mutate(a.id)}>
+              Mark resolved
+            </Button>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
 }
 
 function FleetPage() {
@@ -118,11 +198,18 @@ function FleetPage() {
   const { riders } = useFleetData(org.id);
   const needsBus = busPupilGroups(riders.data ?? []).needsBus.length;
   const access = accessOf(me);
-  if (!access.transport) return <section className="mx-auto max-w-md rounded-3xl border bg-card p-8 text-center">
-    <Bus className="mx-auto size-8 text-muted-foreground" />
-    <p className="mt-4">Fleet needs the School Standard or Multi-School Group plan.</p>
-    <Button asChild className="mt-4"><Link to="/settings" hash="billing">Choose a plan</Link></Button>
-  </section>;
+  if (!access.transport)
+    return (
+      <section className="mx-auto max-w-md rounded-3xl border bg-card p-8 text-center">
+        <Bus className="mx-auto size-8 text-muted-foreground" />
+        <p className="mt-4">Fleet needs the School Standard or Multi-School Group plan.</p>
+        <Button asChild className="mt-4">
+          <Link to="/settings" hash="billing">
+            Choose a plan
+          </Link>
+        </Button>
+      </section>
+    );
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -144,7 +231,9 @@ function FleetPage() {
           <TabsTrigger value="pupils" className="gap-1.5">
             Bus pupils
             {needsBus > 0 && (
-              <span className="rounded-full bg-signal px-1.5 text-xs font-semibold text-signal-foreground">{needsBus}</span>
+              <span className="rounded-full bg-signal px-1.5 text-xs font-semibold text-signal-foreground">
+                {needsBus}
+              </span>
             )}
           </TabsTrigger>
         </TabsList>
@@ -180,15 +269,24 @@ function LiveTracking({ orgId }: { orgId: string }) {
     queryKey: ["fleet", "live", orgId, branchId],
     refetchInterval: 10_000,
     queryFn: async () => {
-      const { data: trips, error } = await inBranch(supabase
-        .from("bus_trips")
-        .select("id, bus_id, direction, current_lat, current_lng, current_speed, last_ping_at, started_at, branch_id, location_paused, location_requested_at")
-        .eq("org_id", orgId).eq("status", "in_transit"), branchId);
+      const { data: trips, error } = await inBranch(
+        supabase
+          .from("bus_trips")
+          .select(
+            "id, bus_id, direction, current_lat, current_lng, current_speed, last_ping_at, started_at, branch_id, location_paused, location_requested_at",
+          )
+          .eq("org_id", orgId)
+          .eq("status", "in_transit"),
+        branchId,
+      );
       if (error) throw error;
       const ids = (trips ?? []).map((t) => t.id);
       if (!ids.length) return { trips: [], logs: [], points: [] };
       const [{ data: logs }, { data: points }] = await Promise.all([
-        supabase.from("pupil_bus_logs").select("trip_id, member_id, status, timestamp").in("trip_id", ids),
+        supabase
+          .from("pupil_bus_logs")
+          .select("trip_id, member_id, status, timestamp")
+          .in("trip_id", ids),
         supabase
           .from("bus_trip_points")
           .select("trip_id, lat, lng, recorded_at")
@@ -247,7 +345,9 @@ function LiveTracking({ orgId }: { orgId: string }) {
           <div className="rounded-3xl border border-dashed p-8 text-center">
             <Bus className="mx-auto size-8 text-muted-foreground" />
             <p className="mt-2 font-medium">No rides in progress</p>
-            <p className="text-sm text-muted-foreground">Buses appear here as soon as a driver taps Start ride.</p>
+            <p className="text-sm text-muted-foreground">
+              Buses appear here as soon as a driver taps Start ride.
+            </p>
           </div>
         )}
         {rows.map((r) => (
@@ -260,10 +360,19 @@ function LiveTracking({ orgId }: { orgId: string }) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <button type="button" className="font-display text-lg font-bold" onClick={() => setFocus(r.trip.id)}>Bus {r.bus?.bus_number}</button>
-                {multi && !branchId && <p className="text-xs text-muted-foreground">{nameOf(r.bus?.branch_id)}</p>}
+                <button
+                  type="button"
+                  className="font-display text-lg font-bold"
+                  onClick={() => setFocus(r.trip.id)}
+                >
+                  Bus {r.bus?.bus_number}
+                </button>
+                {multi && !branchId && (
+                  <p className="text-xs text-muted-foreground">{nameOf(r.bus?.branch_id)}</p>
+                )}
                 <p className="truncate text-sm text-muted-foreground">
-                  {r.bus?.route_axis || r.bus?.plate_number} · {DIRECTION_LABEL[r.trip.direction as TripDirection]}
+                  {r.bus?.route_axis || r.bus?.plate_number} ·{" "}
+                  {DIRECTION_LABEL[r.trip.direction as TripDirection]}
                 </p>
               </div>
               <span
@@ -272,7 +381,12 @@ function LiveTracking({ orgId }: { orgId: string }) {
                   r.stale ? "bg-muted text-muted-foreground" : "bg-checkin/15 text-checkin",
                 )}
               >
-                <span className={cn("size-1.5 rounded-full", r.stale ? "bg-muted-foreground" : "animate-pulse-dot bg-checkin")} />
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    r.stale ? "bg-muted-foreground" : "animate-pulse-dot bg-checkin",
+                  )}
+                />
                 {r.stale ? "Signal lost" : "Live"}
               </span>
             </div>
@@ -295,10 +409,23 @@ function LiveTracking({ orgId }: { orgId: string }) {
                 ? `Updated ${formatDistanceToNowStrict(new Date(r.trip.last_ping_at))} ago`
                 : "Waiting for the first location"}
             </p>
-            {r.trip.location_paused && <p className="mt-3 inline-block rounded-full bg-muted px-3 py-1 text-xs">Location paused by driver</p>}
+            {r.trip.location_paused && (
+              <p className="mt-3 inline-block rounded-full bg-muted px-3 py-1 text-xs">
+                Location paused by driver
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" disabled={request.isPending} onClick={() => request.mutate({ id: r.trip.id, number: r.bus?.bus_number ?? "" })}>Request location</Button>
-              {r.trip.current_lat != null && r.trip.current_lng != null && <MapsLink lat={r.trip.current_lat} lng={r.trip.current_lng} />}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={request.isPending}
+                onClick={() => request.mutate({ id: r.trip.id, number: r.bus?.bus_number ?? "" })}
+              >
+                Request location
+              </Button>
+              {r.trip.current_lat != null && r.trip.current_lng != null && (
+                <MapsLink lat={r.trip.current_lat} lng={r.trip.current_lng} />
+              )}
             </div>
           </section>
         ))}
@@ -315,7 +442,15 @@ function MapFallback() {
   );
 }
 
-function Stat({ icon: Icon, label, value }: { icon: typeof Gauge; label: string; value: string | number }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Gauge;
+  label: string;
+  value: string | number;
+}) {
   return (
     <div className="rounded-2xl bg-muted px-2 py-2.5">
       <Icon className="mx-auto size-4 text-muted-foreground" />
@@ -339,7 +474,10 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
   const total = useQuery({
     queryKey: ["fleet", "count", orgId],
     queryFn: async () => {
-      const { count, error } = await supabase.from("buses").select("id", { count: "exact", head: true }).eq("org_id", orgId);
+      const { count, error } = await supabase
+        .from("buses")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId);
       if (error) throw error;
       return count ?? 0;
     },
@@ -357,7 +495,13 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
       if (!bus_number || !plate_number) throw new Error("Enter the bus number and plate number.");
       const { error } = await supabase
         .from("buses")
-        .insert({ org_id: orgId, branch_id: busBranch, bus_number, plate_number, route_axis: form.route_axis.trim() });
+        .insert({
+          org_id: orgId,
+          branch_id: busBranch,
+          bus_number,
+          plate_number,
+          route_axis: form.route_axis.trim(),
+        });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -385,7 +529,9 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
       <div className="space-y-3">
         {buses.isLoading && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
         {buses.data?.length === 0 && (
-          <div className="rounded-3xl border border-dashed p-8 text-center text-muted-foreground">No buses yet.</div>
+          <div className="rounded-3xl border border-dashed p-8 text-center text-muted-foreground">
+            No buses yet.
+          </div>
         )}
         {buses.data?.map((b) => (
           <BusCard
@@ -394,7 +540,8 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
             riderCount={(riders.data ?? []).filter((m) => m.bus_id === b.id).length}
             onRiders={() => setRidersFor(b)}
             onDelete={() => {
-              if (confirm(`Remove Bus ${b.bus_number}? Its pupils will be unassigned.`)) del.mutate(b.id);
+              if (confirm(`Remove Bus ${b.bus_number}? Its pupils will be unassigned.`))
+                del.mutate(b.id);
             }}
           />
         ))}
@@ -404,7 +551,9 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <Plus className="size-5" /> Add bus
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">{total.data ?? "…"} of {maxBuses} buses</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {total.data ?? "…"} of {maxBuses} buses
+        </p>
         {total.isError && <p className="text-sm text-destructive">Could not load the bus count.</p>}
         <form
           className="mt-4 space-y-3"
@@ -413,17 +562,53 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
             add.mutate();
           }}
         >
-          {multi && me?.branchId === null && <Field label="Branch"><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={busBranch} onChange={(e) => setChosenBranch(e.target.value)}>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>}
+          {multi && me?.branchId === null && (
+            <Field label="Branch">
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={busBranch}
+                onChange={(e) => setChosenBranch(e.target.value)}
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Bus number">
-            <Input value={form.bus_number} onChange={(e) => setForm((f) => ({ ...f, bus_number: e.target.value }))} placeholder="e.g. 03" maxLength={20} required />
+            <Input
+              value={form.bus_number}
+              onChange={(e) => setForm((f) => ({ ...f, bus_number: e.target.value }))}
+              placeholder="e.g. 03"
+              maxLength={20}
+              required
+            />
           </Field>
           <Field label="Plate number">
-            <Input value={form.plate_number} onChange={(e) => setForm((f) => ({ ...f, plate_number: e.target.value }))} placeholder="e.g. LSD 482 KJ" maxLength={20} required />
+            <Input
+              value={form.plate_number}
+              onChange={(e) => setForm((f) => ({ ...f, plate_number: e.target.value }))}
+              placeholder="e.g. LSD 482 KJ"
+              maxLength={20}
+              required
+            />
           </Field>
           <Field label="Route">
-            <Input value={form.route_axis} onChange={(e) => setForm((f) => ({ ...f, route_axis: e.target.value }))} placeholder="e.g. Lekki – Ajah" maxLength={80} />
+            <Input
+              value={form.route_axis}
+              onChange={(e) => setForm((f) => ({ ...f, route_axis: e.target.value }))}
+              placeholder="e.g. Lekki – Ajah"
+              maxLength={80}
+            />
           </Field>
-          <Button type="submit" variant="signal" className="w-full" disabled={add.isPending || atLimit}>
+          <Button
+            type="submit"
+            variant="signal"
+            className="w-full"
+            disabled={add.isPending || atLimit}
+          >
             {add.isPending && <Loader2 className="animate-spin" />} Add bus
           </Button>
         </form>
@@ -441,8 +626,16 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
   );
 }
 
-function BusCard({ bus, riderCount, onRiders, onDelete }: {
-  bus: BusRow; riderCount: number; onRiders: () => void; onDelete: () => void;
+function BusCard({
+  bus,
+  riderCount,
+  onRiders,
+  onDelete,
+}: {
+  bus: BusRow;
+  riderCount: number;
+  onRiders: () => void;
+  onDelete: () => void;
 }) {
   const client = useQueryClient();
   const { data: me } = useMe();
@@ -450,9 +643,16 @@ function BusCard({ bus, riderCount, onRiders, onDelete }: {
   const create = useServerFn(createBusLogin);
   const changePassword = useServerFn(setBusLoginPassword);
   const changeActive = useServerFn(setBusLoginActive);
-  const [contacts, setContacts] = useState({ driver_name: bus.driver_name ?? "", driver_phone: bus.driver_phone ?? "", attendant_name: bus.attendant_name ?? "", attendant_phone: bus.attendant_phone ?? "" });
+  const [contacts, setContacts] = useState({
+    driver_name: bus.driver_name ?? "",
+    driver_phone: bus.driver_phone ?? "",
+    attendant_name: bus.attendant_name ?? "",
+    attendant_phone: bus.attendant_phone ?? "",
+  });
   const domain = me?.org?.admin_email.split("@")[1] || "school.example";
-  const [email, setEmail] = useState(`bus-${bus.bus_number.toLowerCase().replace(/[^a-z0-9-]/g, "-")}@${domain}`);
+  const [email, setEmail] = useState(
+    `bus-${bus.bus_number.toLowerCase().replace(/[^a-z0-9-]/g, "-")}@${domain}`,
+  );
   const [password, setPassword] = useState("");
   const [editingPassword, setEditingPassword] = useState(false);
   const refresh = () => client.invalidateQueries({ queryKey: ["fleet"] });
@@ -461,44 +661,174 @@ function BusCard({ bus, riderCount, onRiders, onDelete }: {
       const { error } = await supabase.from("buses").update(contacts).eq("id", bus.id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Bus updated"); refresh(); }, onError: showError,
+    onSuccess: () => {
+      toast.success("Bus updated");
+      refresh();
+    },
+    onError: showError,
   });
   const login = useMutation({
     mutationFn: async () => {
       if (bus.login_user_id) await changePassword({ data: { busId: bus.id, password } });
       else await create({ data: { busId: bus.id, email, password } });
     },
-    onSuccess: () => { toast.success(bus.login_user_id ? "Password changed" : "Bus login created"); setPassword(""); setEditingPassword(false); refresh(); }, onError: showError,
+    onSuccess: () => {
+      toast.success(bus.login_user_id ? "Password changed" : "Bus login created");
+      setPassword("");
+      setEditingPassword(false);
+      refresh();
+    },
+    onError: showError,
   });
   const active = useMutation({
     mutationFn: () => changeActive({ data: { busId: bus.id, active: !bus.login_active } }),
-    onSuccess: () => { toast.success("Bus updated"); refresh(); }, onError: showError,
+    onSuccess: () => {
+      toast.success("Bus updated");
+      refresh();
+    },
+    onError: showError,
   });
-  return <section className="rounded-3xl border bg-card p-5">
-    <div className="flex items-start justify-between gap-3"><div>
-      <h2 className="font-display text-lg font-bold">Bus {bus.bus_number}</h2>
-      <p className="text-sm text-muted-foreground">{bus.plate_number}{bus.route_axis && ` · ${bus.route_axis}`}</p>
-      {multi && !branchId && <p className="text-sm text-muted-foreground">{nameOf(bus.branch_id)}</p>}
-    </div><Button size="icon" variant="ghost" aria-label={`Remove Bus ${bus.bus_number}`} onClick={onDelete}><Trash2 className="text-destructive" /></Button></div>
-    <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
-      <div className="grid gap-3 sm:grid-cols-2">{(["driver_name", "driver_phone", "attendant_name", "attendant_phone"] as const).map((key) => <Field key={key} label={{ driver_name: "Driver name", driver_phone: "Driver phone", attendant_name: "Attendant name", attendant_phone: "Attendant phone" }[key]}><Input type={key.endsWith("phone") ? "tel" : "text"} value={contacts[key]} onChange={(e) => setContacts((c) => ({ ...c, [key]: e.target.value }))} /></Field>)}</div>
-      <Button type="submit" size="sm" disabled={save.isPending}>Save details</Button>
-      <Button type="button" size="sm" variant="outline" onClick={onRiders} className="ml-2">{riderCount} pupils <Users /></Button>
-    </form>
-    <div className="mt-5 space-y-3 border-t pt-4">
-      <h3 className="font-bold">Bus login</h3>
-      <p className="text-sm text-muted-foreground">Whichever phone signs in with this login is the bus tracker.</p>
-      {bus.login_user_id && <><p className="break-all text-sm">{bus.login_email} · <span className="rounded-full bg-muted px-2 py-1">{bus.login_active ? "Active" : "Off"}</span></p><div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={() => { setEditingPassword((v) => !v); setPassword(""); }}>Change password</Button>
-        <Button size="sm" variant="outline" disabled={active.isPending} onClick={() => { if (!bus.login_active || confirm("The bus phone will stop sharing location and can't sign in.")) active.mutate(); }}>{bus.login_active ? "Turn off" : "Turn on"}</Button>
-      </div></>}
-      {(!bus.login_user_id || editingPassword) && <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); login.mutate(); }}>
-        {!bus.login_user_id && <Field label="Email" hint="Used to sign in on the bus phone. It doesn't need to be a real inbox."><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" /></Field>}
-        <Field label="Password" hint="At least 8 characters."><Input type="password" required minLength={8} maxLength={72} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
-        <Button size="sm" type="submit" disabled={login.isPending}>{bus.login_user_id ? "Save password" : "Create login"}</Button>
-      </form>}
-    </div>
-  </section>;
+  return (
+    <section className="rounded-3xl border bg-card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-bold">Bus {bus.bus_number}</h2>
+          <p className="text-sm text-muted-foreground">
+            {bus.plate_number}
+            {bus.route_axis && ` · ${bus.route_axis}`}
+          </p>
+          {multi && !branchId && (
+            <p className="text-sm text-muted-foreground">{nameOf(bus.branch_id)}</p>
+          )}
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={`Remove Bus ${bus.bus_number}`}
+          onClick={onDelete}
+        >
+          <Trash2 className="text-destructive" />
+        </Button>
+      </div>
+      <form
+        className="mt-4 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(["driver_name", "driver_phone", "attendant_name", "attendant_phone"] as const).map(
+            (key) => (
+              <Field
+                key={key}
+                label={
+                  {
+                    driver_name: "Driver name",
+                    driver_phone: "Driver phone",
+                    attendant_name: "Attendant name",
+                    attendant_phone: "Attendant phone",
+                  }[key]
+                }
+              >
+                <Input
+                  type={key.endsWith("phone") ? "tel" : "text"}
+                  value={contacts[key]}
+                  onChange={(e) => setContacts((c) => ({ ...c, [key]: e.target.value }))}
+                />
+              </Field>
+            ),
+          )}
+        </div>
+        <Button type="submit" size="sm" disabled={save.isPending}>
+          Save details
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={onRiders} className="ml-2">
+          {riderCount} pupils <Users />
+        </Button>
+      </form>
+      <div className="mt-5 space-y-3 border-t pt-4">
+        <h3 className="font-bold">Bus login</h3>
+        <p className="text-sm text-muted-foreground">
+          Whichever phone signs in with this login is the bus tracker.
+        </p>
+        {bus.login_user_id && (
+          <>
+            <p className="break-all text-sm">
+              {bus.login_email} ·{" "}
+              <span className="rounded-full bg-muted px-2 py-1">
+                {bus.login_active ? "Active" : "Off"}
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setEditingPassword((v) => !v);
+                  setPassword("");
+                }}
+              >
+                Change password
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={active.isPending}
+                onClick={() => {
+                  if (
+                    !bus.login_active ||
+                    confirm("The bus phone will stop sharing location and can't sign in.")
+                  )
+                    active.mutate();
+                }}
+              >
+                {bus.login_active ? "Turn off" : "Turn on"}
+              </Button>
+            </div>
+          </>
+        )}
+        {(!bus.login_user_id || editingPassword) && (
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              login.mutate();
+            }}
+          >
+            {!bus.login_user_id && (
+              <Field
+                label="Email"
+                hint="Used to sign in on the bus phone. It doesn't need to be a real inbox."
+              >
+                <Input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="off"
+                />
+              </Field>
+            )}
+            <Field label="Password" hint="At least 8 characters.">
+              <Input
+                type="password"
+                required
+                minLength={8}
+                maxLength={72}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            <Button size="sm" type="submit" disabled={login.isPending}>
+              {bus.login_user_id ? "Save password" : "Create login"}
+            </Button>
+          </form>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function RidersDialog({
@@ -513,7 +843,9 @@ function RidersDialog({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState(() => new Set(riders.filter((r) => r.bus_id === bus.id).map((r) => r.id)));
+  const [selected, setSelected] = useState(
+    () => new Set(riders.filter((r) => r.bus_id === bus.id).map((r) => r.id)),
+  );
   const [q, setQ] = useState("");
   const filtered = riders.filter((r) => r.full_name.toLowerCase().includes(q.trim().toLowerCase()));
   const groups = classGroups(filtered, classes);
@@ -548,17 +880,27 @@ function RidersDialog({
         </DialogHeader>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search students" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search students"
+            className="pl-9"
+          />
         </div>
         <div className="-mx-1 max-h-[50vh] space-y-4 overflow-y-auto px-1">
           {groups.map((g) => (
             <div key={g.label ?? "none"}>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{g.label ?? "No class"}</p>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {g.label ?? "No class"}
+              </p>
               <div className="space-y-1">
                 {g.members.map((r) => {
                   const elsewhere = r.bus_id && r.bus_id !== bus.id;
                   return (
-                    <label key={r.id} className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-muted">
+                    <label
+                      key={r.id}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-muted"
+                    >
                       <Checkbox
                         checked={selected.has(r.id)}
                         onCheckedChange={(v) =>
@@ -572,17 +914,23 @@ function RidersDialog({
                         className="size-5"
                       />
                       <span className="flex-1 text-sm">{r.full_name}</span>
-                      {elsewhere && <span className="text-xs text-muted-foreground">On another bus</span>}
+                      {elsewhere && (
+                        <span className="text-xs text-muted-foreground">On another bus</span>
+                      )}
                     </label>
                   );
                 })}
               </div>
             </div>
           ))}
-          {filtered.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No students found.</p>}
+          {filtered.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">No students found.</p>
+          )}
         </div>
         <DialogFooter>
-          <p className="mr-auto self-center text-sm text-muted-foreground">{selected.size} selected</p>
+          <p className="mr-auto self-center text-sm text-muted-foreground">
+            {selected.size} selected
+          </p>
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending && <Loader2 className="animate-spin" />} Save
           </Button>
@@ -598,10 +946,17 @@ function BusPupils({ orgId }: { orgId: string }) {
   const queryClient = useQueryClient();
   const { buses, riders } = useFleetData(orgId);
   const { needsBus, byBus } = busPupilGroups(riders.data ?? []);
-  const busLabel = (b: BusRow) => `Bus ${b.bus_number}${b.driver_name ? ` · ${b.driver_name}` : ""}`;
+  const busLabel = (b: BusRow) =>
+    `Bus ${b.bus_number}${b.driver_name ? ` · ${b.driver_name}` : ""}`;
 
   const move = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: { bus_id?: string | null; uses_bus?: boolean } }) => {
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { bus_id?: string | null; uses_bus?: boolean };
+    }) => {
       const { error } = await supabase.from("members").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -614,7 +969,9 @@ function BusPupils({ orgId }: { orgId: string }) {
       <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-2xl border bg-card p-3">
         <div className="min-w-0 flex-1 basis-40">
           <p className="truncate font-medium">{r.full_name}</p>
-          <p className="truncate text-xs text-muted-foreground">{r.identifier_code ?? "No class"}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {r.identifier_code ?? "No class"}
+          </p>
         </div>
         <select
           aria-label={`Bus for ${r.full_name}`}
@@ -624,14 +981,21 @@ function BusPupils({ orgId }: { orgId: string }) {
           onChange={(e) => move.mutate({ id: r.id, patch: { bus_id: e.target.value || null } })}
         >
           <option value="">Choose a bus…</option>
-          {buses.data?.filter((b) => b.branch_id === r.branch_id).map((b) => (
-            <option key={b.id} value={b.id}>
-              {busLabel(b)}
-            </option>
-          ))}
+          {buses.data
+            ?.filter((b) => b.branch_id === r.branch_id)
+            .map((b) => (
+              <option key={b.id} value={b.id}>
+                {busLabel(b)}
+              </option>
+            ))}
         </select>
         <div className="flex gap-1">
-          <Button asChild size="icon" variant="ghost" aria-label={`See what ${r.full_name}'s parent sees`}>
+          <Button
+            asChild
+            size="icon"
+            variant="ghost"
+            aria-label={`See what ${r.full_name}'s parent sees`}
+          >
             <a href={busTrackPath(r.bus_track_token)} target="_blank" rel="noreferrer">
               <Eye />
             </a>
@@ -653,16 +1017,22 @@ function BusPupils({ orgId }: { orgId: string }) {
     );
   };
 
-  if (riders.isLoading || buses.isLoading) return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
+  if (riders.isLoading || buses.isLoading)
+    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
 
   return (
     <div className="max-w-3xl space-y-6">
       {!buses.data?.length && (
-        <div className="rounded-2xl bg-signal/15 p-4 text-sm">Add a bus in the Buses tab first.</div>
+        <div className="rounded-2xl bg-signal/15 p-4 text-sm">
+          Add a bus in the Buses tab first.
+        </div>
       )}
       <section>
         <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-bold">
-          Needs a bus <span className="rounded-full bg-signal px-2 text-sm text-signal-foreground">{needsBus.length}</span>
+          Needs a bus{" "}
+          <span className="rounded-full bg-signal px-2 text-sm text-signal-foreground">
+            {needsBus.length}
+          </span>
         </h2>
         {needsBus.length ? (
           <ul className="space-y-2">{needsBus.map(row)}</ul>
@@ -677,7 +1047,8 @@ function BusPupils({ orgId }: { orgId: string }) {
         return (
           <section key={b.id}>
             <h2 className="mb-2 font-display text-lg font-bold">
-              {busLabel(b)} <span className="text-sm font-normal text-muted-foreground">· {list.length}</span>
+              {busLabel(b)}{" "}
+              <span className="text-sm font-normal text-muted-foreground">· {list.length}</span>
             </h2>
             {list.length ? (
               <ul className="space-y-2">{list.map(row)}</ul>
