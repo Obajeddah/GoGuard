@@ -162,9 +162,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.process_instant_email_queue(int) TO service_role;
 
--- 9. Add send.goguard.ng as verified sender domain placeholder
+-- 9. Add verified sender domain placeholder
 -- (Actual domain verification done in Resend dashboard)
-COMMENT ON TABLE public.organizations IS 'EMAIL_FROM should be noreply@yourdomain.com or similar verified domain';
+COMMENT ON TABLE public.organizations IS 'EMAIL_FROM should be noreply@your-verified-domain.com or similar verified domain';
 
 -- 10. Grant for new columns
 GRANT UPDATE (parent_link_token, parent_app_installed, parent_app_installed_at) ON public.members TO authenticated;
