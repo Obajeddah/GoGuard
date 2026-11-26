@@ -1,7 +1,7 @@
 -- Push notifications for Parent PWA
 
 -- Table to store push subscriptions per parent_link_token
-CREATE TABLE public.push_subscriptions (
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   parent_link_token uuid NOT NULL,
   endpoint text NOT NULL UNIQUE,
@@ -11,13 +11,14 @@ CREATE TABLE public.push_subscriptions (
   created_at timestamptz NOT NULL DEFAULT now(),
   last_used_at timestamptz
 );
-CREATE INDEX push_subscriptions_parent_link_idx ON public.push_subscriptions(parent_link_token);
+CREATE INDEX IF NOT EXISTS push_subscriptions_parent_link_idx ON public.push_subscriptions(parent_link_token);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.push_subscriptions TO authenticated;
 GRANT ALL ON public.push_subscriptions TO service_role;
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Parents can manage their own subscriptions
+DROP POLICY IF EXISTS "Parent manages own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Parent manages own push subscriptions" ON public.push_subscriptions
 FOR ALL TO authenticated
 USING (
@@ -32,6 +33,7 @@ WITH CHECK (
 );
 
 -- Service role manages all
+DROP POLICY IF EXISTS "Service role manages push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Service role manages push subscriptions" ON public.push_subscriptions
 FOR ALL TO service_role USING (true) WITH CHECK (true);
 
