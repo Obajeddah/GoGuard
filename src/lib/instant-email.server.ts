@@ -11,6 +11,7 @@ import {
   type RecipientGuardian,
 } from "./notification-recipients";
 import { rideEmail } from "./ride-email";
+import { sendPushToParent } from "./push-notifications.server";
 
 const BATCH_SIZE = 20;
 
@@ -317,6 +318,79 @@ export const processInstantEmailQueue = createServerFn({ method: "POST" })
             .update({ processed_at: new Date().toISOString() })
             .eq("id", item.id);
           sent++;
+
+          // Also send push notification if parent has PWA
+          try {
+            let memberId: string | null = null;
+            if (item.source_table === "gate_logs") {
+              const { data: log } = await supabaseAdmin
+                .from("gate_logs")
+                .select("member_id")
+                .eq("id", item.source_id)
+                .maybeSingle();
+              memberId = log?.member_id ?? null;
+            } else if (item.source_table === "transport_notices") {
+              const { data: notice } = await supabaseAdmin
+                .from("transport_notices")
+                .select("member_id")
+                .eq("id", item.source_id)
+                .maybeSingle();
+              memberId = notice?.member_id ?? null;
+            }
+
+            if (memberId) {
+              const { data: pwaTokenRow } = await supabaseAdmin
+                .from("parent_pwa_tokens")
+                .select("pwa_token, parent_link_token")
+                .eq("member_id", memberId)
+                .maybeSingle();
+
+              if (pwaTokenRow?.parent_link_token) {
+                if (item.source_table === "gate_logs") {
+                const { data: log } = await supabaseAdmin
+                  .from("gate_logs")
+                  .select("member_name, action_type, timestamp")
+                  .eq("id", item.source_id)
+                  .maybeSingle();
+                if (log) {
+                  await sendPushToParent(pwaTokenRow.parent_link_token, {
+                    title: `${log.member_name || "Your child"} ${log.action_type === "check_in" ? "arrived at" : "left"} ${org.name}`,
+                    body: `Scanned at ${new Date(log.timestamp).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}`,
+                    icon: "/icons/icon-192.png",
+                    badge: "/icons/badge-72.png",
+                    tag: `gate-${log.action_type}-${log.timestamp}`,
+                    data: {
+                      type: "gate",
+                      url: pwaTokenRow.pwa_token ? `/parent/app/${pwaTokenRow.pwa_token}` : "/parent",
+                    },
+                  });
+                }
+              } else if (item.source_table === "transport_notices") {
+                const { data: notice } = await supabaseAdmin
+                  .from("transport_notices")
+                  .select("kind, message")
+                  .eq("id", item.source_id)
+                  .maybeSingle();
+                if (notice) {
+                  await sendPushToParent(pwaTokenRow.parent_link_token, {
+                    title: notice.kind === "pupil_boarded" ? "Child boarded bus" : "Child dropped off",
+                    body: notice.message,
+                    icon: "/icons/icon-192.png",
+                    badge: "/icons/badge-72.png",
+                    tag: `bus-${notice.kind}-${Date.now()}`,
+                    data: {
+                      type: "bus",
+                      url: pwaTokenRow.pwa_token ? `/parent/app/${pwaTokenRow.pwa_token}` : "/parent",
+                    },
+                  });
+                }
+              }
+            }
+          } // Close try block for push notifications
+          } catch (pushErr) {
+            console.warn("[instant-email] Push notification failed:", pushErr);
+            // Don't fail the whole process if push fails
+          }
         } else {
           // Increment attempts
           await supabaseAdmin

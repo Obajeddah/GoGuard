@@ -788,6 +788,39 @@ export type Database = {
           },
         ];
       };
+      push_subscriptions: {
+        Row: {
+          auth: string;
+          created_at: string;
+          endpoint: string;
+          id: string;
+          last_used_at: string | null;
+          p256dh: string;
+          parent_link_token: string;
+          user_agent: string | null;
+        };
+        Insert: {
+          auth: string;
+          created_at?: string;
+          endpoint: string;
+          id?: string;
+          last_used_at?: string | null;
+          p256dh: string;
+          parent_link_token: string;
+          user_agent?: string | null;
+        };
+        Update: {
+          auth?: string;
+          created_at?: string;
+          endpoint?: string;
+          id?: string;
+          last_used_at?: string | null;
+          p256dh?: string;
+          parent_link_token?: string;
+          user_agent?: string | null;
+        };
+        Relationships: [];
+      };
       organizations: {
         Row: {
           admin_email: string;

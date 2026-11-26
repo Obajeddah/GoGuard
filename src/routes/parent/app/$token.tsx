@@ -7,6 +7,7 @@ import { z } from "zod";
 import { format, formatDistanceToNow } from "date-fns";
 
 import { getParentChildStatus, registerParentWebAuthn } from "@/lib/parent-pwa.functions";
+import { subscribePush } from "@/lib/push-notifications.server";
 import { GateMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,16 @@ export const Route = createFileRoute("/parent/app/$token")({
 
 function ParentAppLayout() {
   const { pwaToken } = Route.useLoaderData();
+
+  // Register service worker for PWA and push notifications
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/parent-sw.js").catch((err) => {
+        console.warn("SW registration failed:", err);
+      });
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <ParentHeader pwaToken={pwaToken} />
@@ -83,6 +94,7 @@ function ParentChildStatus() {
     photoPath: string | null;
     usesBus: boolean;
     gateStatus: string;
+    parentLinkToken: string; // For push notifications
     latestGate: {
       action: string;
       at: string;
@@ -152,6 +164,56 @@ function ParentChildStatus() {
           }
         });
       }
+    }
+  }, [status]);
+
+  function urlBase64ToUint8Array(base64String: string): BufferSource {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  // Register for push notifications
+  useEffect(() => {
+    if (status && "serviceWorker" in navigator && "PushManager" in window) {
+      navigator.serviceWorker.ready.then(async (registration) => {
+        const existing = await registration.pushManager.getSubscription();
+        if (!existing) {
+          try {
+            const vapidPublicKey = import.meta.env["VITE_VAPID_PUBLIC_KEY"];
+            if (vapidPublicKey && status.child.parentLinkToken) {
+              const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+              });
+              await subscribePush({
+                data: {
+                  parentLinkToken: status.child.parentLinkToken,
+                  subscription: {
+                    endpoint: subscription.endpoint,
+                    keys: {
+                      p256dh: btoa(
+                        String.fromCharCode(...new Uint8Array(subscription.getKey("p256dh")!)),
+                      ),
+                      auth: btoa(
+                        String.fromCharCode(...new Uint8Array(subscription.getKey("auth")!)),
+                      ),
+                    },
+                  },
+                  userAgent: navigator.userAgent,
+                },
+              });
+            }
+          } catch (err) {
+            console.warn("Push subscription failed:", err);
+          }
+        }
+      });
     }
   }, [status]);
 

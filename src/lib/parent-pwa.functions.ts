@@ -101,6 +101,7 @@ export const getParentChildStatus = createServerFn({ method: "GET" })
         uses_bus,
         bus_id,
         bus_track_token,
+        parent_link_token,
         org:organizations(name, type, emergency_phone),
         branch:branches(name),
         photo_path
@@ -249,6 +250,7 @@ export const getParentChildStatus = createServerFn({ method: "GET" })
         photoPath: member.photo_path,
         usesBus: member.uses_bus,
         gateStatus,
+        parentLinkToken: member.parent_link_token,
         latestGate: latestGate
           ? {
               action: latestGate.action_type,
