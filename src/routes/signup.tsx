@@ -231,13 +231,9 @@ function SignupPage() {
             siteKey={config.data.turnstileSiteKey}
             onToken={setCaptchaToken}
           />
-        ) : (
-          <p className="text-sm text-destructive">
-            {config.isLoading
-              ? "Loading security check…"
-              : "School registration is temporarily unavailable. Please try again later."}
-          </p>
-        )}
+        ) : config.isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading security check…</p>
+        ) : null}
         {errors["form"] && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {errors["form"]}
@@ -249,7 +245,7 @@ function SignupPage() {
           variant="signal"
           size="lg"
           className="w-full"
-          disabled={busy || !captchaToken || !config.data?.turnstileSiteKey}
+          disabled={busy || (config.data?.turnstileSiteKey && !captchaToken)}
         >
           {busy && <Loader2 className="animate-spin" />}{" "}
           {plan === "basic" ? "Start free trial" : "Register school"}
