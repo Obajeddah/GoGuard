@@ -120,8 +120,8 @@ DECLARE
   v_row record;
   v_org record;
   v_member record;
-  v_guardians record[];
-  v_recipients record[];
+  v_guardians record;
+  v_recipients record;
   v_email_out record;
 BEGIN
   FOR v_row IN
@@ -141,17 +141,13 @@ BEGIN
     -- Load member and guardians based on source
     IF v_row.source_table = 'gate_logs' THEN
       SELECT * INTO v_member FROM public.members WHERE id = (SELECT member_id FROM public.gate_logs WHERE id = v_row.source_id);
-      SELECT array_agg(g) INTO v_guardians FROM (
+      -- Fetch guardians as a set, process in loop
+      FOR v_guardians IN
         SELECT id, name, email, receive_general_notifications FROM public.guardians WHERE member_id = v_member.id
-      ) g;
-
-      -- Build recipients: parent always, acting guardian, opted-in guardians
-      v_recipients := ARRAY[]::record[];
-      IF v_member.primary_email IS NOT NULL THEN
-        v_recipients := v_recipients || ROW(v_member.primary_email, v_member.parent_or_owner_name, 'parent')::record;
-      END IF;
-      -- Add acting guardian and opted-in guardians (simplified - actual logic in TS)
-      -- This is a placeholder; real email sending happens in edge function
+      LOOP
+        -- Build recipients: parent always, acting guardian, opted-in guardians
+        -- This is a placeholder; real email sending happens in edge function
+      END LOOP;
     ELSIF v_row.source_table = 'transport_notices' THEN
       -- Similar for ride emails
     END IF;
