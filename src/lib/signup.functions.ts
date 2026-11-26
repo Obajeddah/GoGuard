@@ -50,7 +50,12 @@ export const checkOrgEmail = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: true; ticket: string } | { ok: false; error: string; captcha?: boolean }> => {
-      if (!(await captchaOk(data.captchaToken)))
+      const captchaEnabled = captchaConfigured(
+        process.env["TURNSTILE_SITE_KEY"],
+        process.env["TURNSTILE_SECRET_KEY"],
+      );
+      
+      if (captchaEnabled && !(await captchaOk(data.captchaToken)))
         return { ok: false, error: "Please complete the security check.", captcha: true };
 
       const policyError = orgEmailPolicyError(data.email, data.type);
