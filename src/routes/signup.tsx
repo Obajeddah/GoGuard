@@ -118,9 +118,10 @@ function SignupPage() {
         return;
       }
       setSentTo(parsed.data.email);
-    } catch {
-      setErrors({ form: "Something went wrong. Please try again." });
-    } finally {
+} catch (err) {
+        console.error("[signup] Error:", err);
+        setErrors({ form: err instanceof Error ? err.message : "Something went wrong. Please try again." });
+      } finally {
       setBusy(false);
       setCaptchaToken("");
       setCaptchaVersion((v) => v + 1);
