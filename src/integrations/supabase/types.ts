@@ -590,6 +590,9 @@ export type Database = {
           identifier_code: string | null;
           org_id: string;
           parent_or_owner_name: string | null;
+          parent_app_installed: boolean;
+          parent_app_installed_at: string | null;
+          parent_link_token: string;
           photo_path: string | null;
           primary_email: string;
           primary_phone: string | null;
@@ -605,6 +608,9 @@ export type Database = {
           identifier_code?: string | null;
           org_id: string;
           parent_or_owner_name?: string | null;
+          parent_app_installed?: boolean;
+          parent_app_installed_at?: string | null;
+          parent_link_token?: string;
           photo_path?: string | null;
           primary_email: string;
           primary_phone?: string | null;
@@ -620,6 +626,9 @@ export type Database = {
           identifier_code?: string | null;
           org_id?: string;
           parent_or_owner_name?: string | null;
+          parent_app_installed?: boolean;
+          parent_app_installed_at?: string | null;
+          parent_link_token?: string;
           photo_path?: string | null;
           primary_email?: string;
           primary_phone?: string | null;
@@ -676,6 +685,104 @@ export type Database = {
             foreignKeyName: "org_secrets_org_id_fkey";
             columns: ["org_id"];
             isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      parent_pwa_tokens: {
+        Row: {
+          created_at: string;
+          id: string;
+          member_id: string;
+          org_id: string;
+          otp_code: string | null;
+          otp_expires_at: string | null;
+          otp_verified_at: string | null;
+          parent_link_token: string;
+          pwa_token: string;
+          webauthn_credential_id: string | null;
+          last_accessed_at: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          member_id: string;
+          org_id: string;
+          otp_code?: string | null;
+          otp_expires_at?: string | null;
+          otp_verified_at?: string | null;
+          parent_link_token: string;
+          pwa_token: string;
+          webauthn_credential_id?: string | null;
+          last_accessed_at?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          member_id?: string;
+          org_id?: string;
+          otp_code?: string | null;
+          otp_expires_at?: string | null;
+          otp_verified_at?: string | null;
+          parent_link_token?: string;
+          pwa_token?: string;
+          webauthn_credential_id?: string | null;
+          last_accessed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "parent_pwa_tokens_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "parent_pwa_tokens_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      instant_email_queue: {
+        Row: {
+          attempts: number;
+          created_at: string;
+          id: string;
+          org_id: string;
+          priority: number;
+          processed_at: string | null;
+          source_id: string;
+          source_table: string;
+        };
+        Insert: {
+          attempts?: number;
+          created_at?: string;
+          id?: string;
+          org_id: string;
+          priority?: number;
+          processed_at?: string | null;
+          source_id: string;
+          source_table: string;
+        };
+        Update: {
+          attempts?: number;
+          created_at?: string;
+          id?: string;
+          org_id?: string;
+          priority?: number;
+          processed_at?: string | null;
+          source_id?: string;
+          source_table?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "instant_email_queue_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
             referencedRelation: "organizations";
             referencedColumns: ["id"];
           },
