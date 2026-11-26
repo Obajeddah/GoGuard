@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { emailConfigured, sendEmail } from "./email.server";
 
 const pwaTokenSchema = z.string().regex(/^[a-f0-9]{64}$/i, "Invalid token");
 const otpCodeSchema = z.string().regex(/^\d{6}$/, "Enter the 6-digit code");
@@ -320,7 +321,99 @@ export const resendParentPwaOtp = createServerFn({ method: "POST" })
       .update({ otp_code: otpCode, otp_expires_at: otpExpiresAt })
       .eq("id", tokenRow.id);
 
-    // TODO: Send OTP via email/SMS using notification system
-    // For now, return the code (in production, send via email/sms)
+    // Send OTP via email
+    if (emailConfigured()) {
+      await sendParentPwaOtpEmail(tokenRow.id, otpCode);
+    }
+
     return { success: true, otpCode };
+  });
+
+/**
+ * Send OTP email for parent PWA access
+ */
+async function sendParentPwaOtpEmail(pwaTokenId: string, otpCode: string) {
+  const { data: tokenRow } = await supabaseAdmin
+    .from("parent_pwa_tokens")
+    .select(
+      "pwa_token, parent_link_token, member:members(full_name, primary_email, parent_or_owner_name), org:organizations(name)",
+    )
+    .eq("id", pwaTokenId)
+    .maybeSingle();
+
+  if (!tokenRow?.member?.primary_email) return;
+
+  const { sendEmail } = await import("./email.server");
+  const subject = `Your GoGuard Parent App access code`;
+  const text = [
+    `Hello ${tokenRow.member.parent_or_owner_name || "there"},`,
+    "",
+    `Your child ${tokenRow.member.full_name} has been registered at ${tokenRow.org?.name || "the school"}.`,
+    `Your 6-digit access code is: ${otpCode}`,
+    "",
+    `This code expires in 30 minutes. Use it at: ${tokenRow.pwa_token ? `https://goguard.ng/parent/${tokenRow.pwa_token}` : "the Parent App link"}`,
+    "",
+    "If you didn't expect this, please contact the school.",
+  ].join("\n");
+
+  await sendEmail({
+    to: tokenRow.member.primary_email,
+    subject,
+    text,
+    html: text.replace(/\n/g, "<br>"),
+  });
+}
+
+/**
+ * Create PWA token for a new member and send OTP email
+ */
+export const createParentPwaToken = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        orgId: z.string().uuid(),
+        parentLinkToken: z.string().uuid(),
+        siteUrl: z.string().url(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { memberId, orgId, parentLinkToken, siteUrl } = data;
+
+    // Generate 64-char PWA token
+    const pwaToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    const { data: tokenRow, error } = await supabaseAdmin
+      .from("parent_pwa_tokens")
+      .insert({
+        member_id: memberId,
+        org_id: orgId,
+        parent_link_token: parentLinkToken,
+        pwa_token: pwaToken,
+        otp_code: otpCode,
+        otp_expires_at: otpExpiresAt,
+      })
+      .select("id")
+      .single();
+
+    if (error || !tokenRow) {
+      throw new Error("Failed to create PWA token");
+    }
+
+    // Send OTP via email
+    if (emailConfigured()) {
+      await sendParentPwaOtpEmail(tokenRow.id, otpCode);
+    }
+
+    return {
+      success: true,
+      pwaToken,
+      pwaUrl: `${siteUrl.replace(/\/$/, "")}/parent/${pwaToken}`,
+    };
   });

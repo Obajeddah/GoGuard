@@ -144,6 +144,7 @@ function RegisterPage() {
         data: {
           token,
           website: honeypot,
+          siteUrl: window.location.origin,
           member: {
             full_name: member.full_name,
             identifier_code: member.identifier_code,

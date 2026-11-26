@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { MAX_GUARDIANS } from "./org-terms";
 import { isAllowedClass } from "./classes";
+import { createParentPwaToken } from "./parent-pwa.functions";
 
 const photoDataUrl = z
   .string()
@@ -60,6 +61,7 @@ const guardianSchema = z.object({
 const registrationSchema = z.object({
   token: tokenSchema,
   website: z.string().max(0).optional(), // honeypot
+  siteUrl: z.string().url(), // Client's origin for email links
   member: z.object({
     full_name: z.string().trim().min(1).max(120),
     identifier_code: z.string().trim().max(60).optional().default(""),
@@ -135,7 +137,7 @@ export const submitRegistration = createServerFn({ method: "POST" })
         primary_phone: data.parent.phone || null,
         uses_bus: org.transport && data.member.uses_bus,
       })
-      .select("id, uses_bus, bus_track_token")
+      .select("id, uses_bus, bus_track_token, parent_link_token")
       .single();
     if (memberErr || !member)
       throw new Error("We couldn't save your registration. Please try again.");
@@ -195,6 +197,17 @@ export const submitRegistration = createServerFn({ method: "POST" })
         memberName: data.member.full_name,
         busTrackToken: member.uses_bus ? member.bus_track_token : null,
         passes,
+        // Create PWA token for parent app access
+        pwaToken: (
+          await createParentPwaToken({
+            data: {
+              memberId: member.id,
+              orgId: org.id,
+              parentLinkToken: member.parent_link_token!,
+              siteUrl: data.siteUrl,
+            },
+          })
+        ).pwaUrl,
       };
     } catch (e) {
       await supabaseAdmin.from("members").delete().eq("id", member.id);
