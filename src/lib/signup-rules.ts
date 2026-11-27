@@ -14,6 +14,5 @@ export function signupMetadata(ticket: string, plan: PlanId) {
 }
 
 export function captchaConfigured(siteKey: string | undefined, secretKey: string | undefined) {
-  // Disabled for testing
-  return false;
+  return Boolean(siteKey && secretKey);
 }
