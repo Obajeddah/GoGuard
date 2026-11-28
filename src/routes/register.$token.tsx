@@ -114,8 +114,15 @@ function RegisterPage() {
 
   const [members, setMembers] = useState<ChildDraft[]>(() => [newChild(0)]);
   const [usesBus, setUsesBus] = useState(false);
-  const [parent, setParent] = useState({ name: "", email: "", phone: "" });
-  const [guardians, setGuardians] = useState<GuardianDraft[]>(() => [newGuardian(0)]);
+  const [parent, setParent] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    relationship: "",
+    photo: null as string | null,
+  });
+  // The registering parent is Guardian 1, so this list holds only the extras.
+  const [guardians, setGuardians] = useState<GuardianDraft[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -142,6 +149,9 @@ function RegisterPage() {
     });
     if (!parent.name.trim()) e["parent_name"] = "Enter your full name";
     if (!emailOk(parent.email)) e["parent_email"] = "Enter a valid email address";
+    if (!parent.relationship.trim()) e["parent_rel"] = "Choose your relationship";
+    if (!parent.photo)
+      e["parent_photo"] = "Add a clear photo of your face. Guards use it to confirm who you are.";
     guardians.forEach((g, i) => {
       if (!g.name.trim()) e[`g${i}_name`] = "Enter their full name";
       if (!g.relationship.trim()) e[`g${i}_rel`] = "Choose or type a relationship";
@@ -174,13 +184,22 @@ function RegisterPage() {
           })),
           uses_bus: org.transport && usesBus,
           parent,
-          guardians: guardians.map((g) => ({
-            name: g.name,
-            relationship: g.relationship,
-            email: g.email,
-            photo: g.photo!,
-            receive_general_notifications: g.receive_general_notifications,
-          })),
+          guardians: [
+            {
+              name: parent.name,
+              relationship: parent.relationship,
+              email: parent.email,
+              photo: parent.photo!,
+              receive_general_notifications: true,
+            },
+            ...guardians.map((g) => ({
+              name: g.name,
+              relationship: g.relationship,
+              email: g.email,
+              photo: g.photo!,
+              receive_general_notifications: g.receive_general_notifications,
+            })),
+          ],
         },
       });
       setResult(res);
@@ -199,7 +218,7 @@ function RegisterPage() {
       <Success
         result={result}
         parentEmail={parent.email}
-        photos={members.map(() => guardians.map((g) => g.photo))}
+        photos={members.map(() => [parent.photo, ...guardians.map((g) => g.photo)])}
       />
     );
 
@@ -342,60 +361,111 @@ function RegisterPage() {
           )}
         </Section>
 
-        <Section step="2" title="Your details">
-          <div className="space-y-3">
-            <Field label="Your full name" error={errors["parent_name"]}>
-              <Input
-                value={parent.name}
-                onChange={(e) => setParent((p) => ({ ...p, name: e.target.value }))}
-                autoComplete="name"
+        <Section step="2" title="Your details" aside="Guardian 1">
+          <p className="mb-4 text-sm text-muted-foreground">
+            You are the first {terms.guardian.toLowerCase()}. Your pass is included, and you receive
+            every gate update.
+          </p>
+          <div className="flex gap-4">
+            <div>
+              <PhotoPicker
+                value={parent.photo}
+                onChange={(photo) => setParent((p) => ({ ...p, photo }))}
+                label="Your face photo"
+                required
               />
-            </Field>
-            <Field
-              label="Your email"
-              error={errors["parent_email"]}
-              hint={`You'll receive an email for every ${terms.checkInHint.toLowerCase()} and ${terms.checkOutHint.toLowerCase()}, whoever is at the gate.`}
-            >
-              <Input
-                type="email"
-                value={parent.email}
-                onChange={(e) => setParent((p) => ({ ...p, email: e.target.value }))}
-                autoComplete="email"
-              />
-            </Field>
-            <Field label="Phone (optional)">
-              <Input
-                type="tel"
-                value={parent.phone}
-                onChange={(e) => setParent((p) => ({ ...p, phone: e.target.value }))}
-                autoComplete="tel"
-              />
-            </Field>
+              {errors["parent_photo"] && (
+                <p className="mt-2 max-w-24 text-sm text-destructive">{errors["parent_photo"]}</p>
+              )}
+            </div>
+            <div className="flex-1 space-y-3">
+              <Field label="Your full name" error={errors["parent_name"]}>
+                <Input
+                  value={parent.name}
+                  onChange={(e) => setParent((p) => ({ ...p, name: e.target.value }))}
+                  autoComplete="name"
+                />
+              </Field>
+              <Field
+                label="Your email"
+                error={errors["parent_email"]}
+                hint={`You'll receive an email for every ${terms.checkInHint.toLowerCase()} and ${terms.checkOutHint.toLowerCase()}, whoever is at the gate.`}
+              >
+                <Input
+                  type="email"
+                  value={parent.email}
+                  onChange={(e) => setParent((p) => ({ ...p, email: e.target.value }))}
+                  autoComplete="email"
+                />
+              </Field>
+              <Field label="Phone (optional)">
+                <Input
+                  type="tel"
+                  value={parent.phone}
+                  onChange={(e) => setParent((p) => ({ ...p, phone: e.target.value }))}
+                  autoComplete="tel"
+                />
+              </Field>
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="mb-1.5 text-sm font-medium">
+              Your relationship to{" "}
+              {org.type === "school" ? "your child" : `the ${terms.member.toLowerCase()}`}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {terms.relationships.map((r) => (
+                <button
+                  type="button"
+                  key={r}
+                  onClick={() => setParent((p) => ({ ...p, relationship: r }))}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-sm transition",
+                    parent.relationship === r
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <Input
+              className="mt-2"
+              placeholder="Other (please specify)"
+              value={terms.relationships.includes(parent.relationship) ? "" : parent.relationship}
+              onChange={(e) => setParent((p) => ({ ...p, relationship: e.target.value }))}
+            />
+            {errors["parent_rel"] && (
+              <p className="mt-1 text-sm text-destructive">{errors["parent_rel"]}</p>
+            )}
           </div>
         </Section>
 
         <Section
           step="3"
-          title={`Trusted ${terms.guardians.toLowerCase()}`}
-          aside={`${guardians.length} of ${MAX_GUARDIANS}`}
+          title={`Other trusted ${terms.guardians.toLowerCase()}`}
+          aside={`${guardians.length} of ${MAX_GUARDIANS - 1} added`}
         >
+          <p className="mb-4 text-sm text-muted-foreground">
+            You are already {terms.guardian.toLowerCase()} 1. Add up to {MAX_GUARDIANS - 1} more
+            people you trust — {MAX_GUARDIANS} people in total.
+          </p>
           <div className="space-y-4">
             {guardians.map((g, i) => (
               <div key={g.key} className="rounded-2xl border bg-background p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="font-display font-semibold">
-                    {terms.guardian} {i + 1}
+                    {terms.guardian} {i + 2}
                   </p>
-                  {guardians.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setGuardians((gs) => gs.filter((x) => x.key !== g.key))}
-                    >
-                      <Trash2 /> Remove
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setGuardians((gs) => gs.filter((x) => x.key !== g.key))}
+                  >
+                    <Trash2 /> Remove
+                  </Button>
                 </div>
                 <div className="flex gap-4">
                   <div>
@@ -481,7 +551,7 @@ function RegisterPage() {
               </div>
             ))}
 
-            {guardians.length < MAX_GUARDIANS && (
+            {guardians.length < MAX_GUARDIANS - 1 && (
               <Button
                 type="button"
                 variant="outline"

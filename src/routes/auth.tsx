@@ -143,6 +143,8 @@ function AuthPage() {
           <form onSubmit={onSignIn} className="mt-6 space-y-4">
             <Field label="Email">
               <Input
+                id="email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -152,6 +154,8 @@ function AuthPage() {
             </Field>
             <Field label="Password">
               <Input
+                id="password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -198,6 +202,8 @@ function AuthPage() {
           <form onSubmit={onForgot} className="mt-6 space-y-4">
             <Field label="Email">
               <Input
+                id="email-forgot"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

@@ -50,6 +50,8 @@ function ResetPasswordPage() {
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Field label="New password" error={error ?? undefined}>
           <Input
+            id="password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

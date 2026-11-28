@@ -8,7 +8,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { checkOrgEmail, getSignupConfig } from "@/lib/signup.functions";
 import { signupMetadata, signupPlan } from "@/lib/signup-rules";
-import { SignupCaptcha } from "@/components/signup-captcha";
+import { SignupCaptcha, type CaptchaStatus } from "@/components/signup-captcha";
 import { orgEmailPolicyError } from "@/lib/email-domain";
 import { termsFor, type OrgType } from "@/lib/org-terms";
 import { TRIAL_DAYS, PLANS, PLAN_IDS, formatNaira, type PlanId } from "@/lib/billing";
@@ -53,6 +53,7 @@ function SignupPage() {
   const [plan, setPlan] = useState<PlanId>(() => signupPlan(planParam));
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(0);
+  const [captchaStatus, setCaptchaStatus] = useState<CaptchaStatus>("loading");
   const type = TYPE;
   const [form, setForm] = useState({
     orgName: "",
@@ -212,11 +213,36 @@ function SignupPage() {
         </div>
 
         {config.data?.turnstileSiteKey ? (
-          <SignupCaptcha
-            key={captchaVersion}
-            siteKey={config.data.turnstileSiteKey}
-            onToken={setCaptchaToken}
-          />
+          <div className="space-y-2">
+            <SignupCaptcha
+              key={captchaVersion}
+              siteKey={config.data.turnstileSiteKey}
+              onToken={setCaptchaToken}
+              onStatus={setCaptchaStatus}
+            />
+            {captchaStatus === "loading" && (
+              <p className="text-sm text-muted-foreground">Loading security check…</p>
+            )}
+            {captchaStatus === "error" && (
+              <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p>
+                  The security check couldn&apos;t load. Disable any ad-blocker or switch
+                  network, then try again.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 font-medium underline underline-offset-4"
+                  onClick={() => {
+                    setCaptchaToken("");
+                    setCaptchaStatus("loading");
+                    setCaptchaVersion((v) => v + 1);
+                  }}
+                >
+                  Retry security check
+                </button>
+              </div>
+            )}
+          </div>
         ) : config.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading security check…</p>
         ) : null}
@@ -231,7 +257,7 @@ function SignupPage() {
           variant="signal"
           size="lg"
           className="w-full"
-          disabled={busy || (config.data?.turnstileSiteKey && !captchaToken)}
+          disabled={busy || Boolean(config.data?.turnstileSiteKey && !captchaToken)}
         >
           {busy && <Loader2 className="animate-spin" />}{" "}
           {plan === "basic" ? "Start free trial" : "Register school"}

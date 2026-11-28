@@ -35,7 +35,7 @@ export const ORG_TERMS: Record<OrgType, OrgTerms> = {
     guardians: "Guardians",
     registerTitle: "Register your child's trusted guardians",
     registerIntro:
-      "Add up to four people you trust to drop off and pick up your child. Each person receives a personal QR pass to show at the gate.",
+      "You are the first guardian. Add up to three more people you trust to drop off and pick up your child. Each person receives a personal QR pass to show at the gate.",
     checkIn: "Check in",
     checkOut: "Check out",
     checkInHint: "Drop-off",
@@ -64,7 +64,7 @@ export const ORG_TERMS: Record<OrgType, OrgTerms> = {
     guardians: "Authorised people",
     registerTitle: "Register your household's authorised people",
     registerIntro:
-      "Add up to four people allowed through the gate on your behalf. Each person receives a personal QR pass.",
+      "You are the first authorised person. Add up to three more people allowed through the gate on your behalf. Each person receives a personal QR pass.",
     checkIn: "Check in",
     checkOut: "Check out",
     checkInHint: "Entry",
@@ -84,7 +84,7 @@ export const ORG_TERMS: Record<OrgType, OrgTerms> = {
     guardians: "Authorised contacts",
     registerTitle: "Register your authorised contacts",
     registerIntro:
-      "Add up to four people allowed to collect or escort you on site. Each person receives a personal QR pass.",
+      "You are the first authorised contact. Add up to three more people allowed to collect or escort you on site. Each person receives a personal QR pass.",
     checkIn: "Check in",
     checkOut: "Check out",
     checkInHint: "Arrival",

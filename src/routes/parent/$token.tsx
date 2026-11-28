@@ -151,6 +151,8 @@ function ParentOtpGate() {
             {Array.from({ length: 6 }).map((_, i) => (
               <Input
                 key={i}
+                id={`otp-${i}`}
+                name={`otp-${i}`}
                 type="text"
                 maxLength={1}
                 inputMode="numeric"
