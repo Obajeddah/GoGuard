@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -25,7 +26,10 @@ import { EditStudent } from "@/components/edit-student";
 import { usePhotoUrls } from "@/hooks/use-photo-urls";
 import { MAX_GUARDIANS, termsFor, type OrgTerms } from "@/lib/org-terms";
 import { can } from "@/lib/access";
-import { dataUrlToBlob } from "@/lib/image";
+import { uploadProfilePhoto } from "@/lib/photo.functions";
+import { sendMemberPassEmails } from "@/lib/pass-email.functions";
+import { createMember } from "@/lib/member.functions";
+import { checkGuardianEmails } from "@/lib/email-check.functions";
 import { parseCsv } from "@/lib/csv";
 import { AppShell } from "@/components/app-shell";
 import { Field } from "@/components/auth-frame";
@@ -60,12 +64,12 @@ import { format } from "date-fns";
 export const Route = createFileRoute("/_authenticated/members")({
   head: () => ({
     meta: [
-      { title: "Directory — GoGuard" },
+      { title: "Directory · GoGuard" },
       {
         name: "description",
         content: "Everyone registered at your gate, with their trusted guardians and passes.",
       },
-      { property: "og:title", content: "Directory — GoGuard" },
+      { property: "og:title", content: "Directory · GoGuard" },
       {
         property: "og:description",
         content: "Everyone registered at your gate, with their trusted guardians and passes.",
@@ -83,7 +87,6 @@ interface GuardianRow {
   id: string;
   name: string;
   relationship: string;
-  email: string;
   photo_path: string | null;
   receive_general_notifications: boolean;
   unique_qr_hash: string;
@@ -93,8 +96,6 @@ interface MemberRow {
   full_name: string;
   identifier_code: string | null;
   parent_or_owner_name: string | null;
-  primary_email: string;
-  primary_phone: string | null;
   branch_id: string;
   photo_path: string | null;
   created_at: string;
@@ -114,6 +115,8 @@ function MembersPage() {
   const [dupOnly, setDupOnly] = useState(false);
   const schoolClasses = org.classes ?? [];
 
+
+
   const membersQuery = useQuery({
     queryKey: ["members", org.id, branchId],
     queryFn: async () => {
@@ -122,7 +125,9 @@ function MembersPage() {
           supabase
             .from("members")
             .select(
-              "id, branch_id, full_name, identifier_code, parent_or_owner_name, primary_email, primary_phone, photo_path, created_at, guardians(id, name, relationship, email, photo_path, receive_general_notifications, unique_qr_hash)",
+              // Contact details never leave the server: the school only needs
+              // names, classes and passes, and nothing here can be scraped.
+              "id, branch_id, full_name, identifier_code, parent_or_owner_name, photo_path, created_at, guardians(id, name, relationship, photo_path, receive_general_notifications, unique_qr_hash)",
             )
             .eq("org_id", org.id)
             .order("full_name")
@@ -171,7 +176,6 @@ function MembersPage() {
         m.full_name,
         m.identifier_code,
         m.parent_or_owner_name,
-        m.primary_email,
         ...m.guardians.map((g) => g.name),
       ]
         .filter(Boolean)
@@ -211,7 +215,7 @@ function MembersPage() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={`Search by name, ${terms.identifier.toLowerCase()} or email`}
+          placeholder={`Search by name or ${terms.identifier.toLowerCase()}`}
           className="pl-9"
         />
       </div>
@@ -399,7 +403,7 @@ function MemberCard({
           </p>
           <p className="truncate text-sm text-muted-foreground">
             {[member.identifier_code, member.parent_or_owner_name].filter(Boolean).join(" · ") ||
-              member.primary_email}
+              "No class set"}
           </p>
         </div>
         <div className="flex -space-x-2">
@@ -426,7 +430,7 @@ function MemberCard({
               </p>
               {dup.differentParents && (
                 <p className="mt-1 font-medium text-destructive">
-                  Registered by different parent emails. Check with the parent you know before
+                  Registered under different parent names. Check with the parent you know before
                   removing one.
                 </p>
               )}
@@ -438,7 +442,7 @@ function MemberCard({
                     <li key={id} className={cn(id === member.id && "font-medium text-foreground")}>
                       {id === member.id ? "This one" : o.full_name} ·{" "}
                       {o.identifier_code || `no ${terms.identifier.toLowerCase()}`} ·{" "}
-                      {o.primary_email} · {format(new Date(o.created_at), "d MMM yyyy, HH:mm")} ·{" "}
+                      {format(new Date(o.created_at), "d MMM yyyy, HH:mm")} ·{" "}
                       {o.guardians.length}{" "}
                       {o.guardians.length === 1
                         ? terms.guardian.toLowerCase()
@@ -452,10 +456,9 @@ function MemberCard({
           <p className="mb-1 text-xs text-muted-foreground">
             Registered {format(new Date(member.created_at), "d MMM yyyy, HH:mm")}
           </p>
-          <p className="text-sm">
-            <span className="text-muted-foreground">{terms.ownerEmail}:</span>{" "}
-            <span className="font-medium">{member.primary_email}</span>{" "}
-            <span className="text-xs text-muted-foreground">· receives every update</span>
+          <p className="text-sm text-muted-foreground">
+            Contact details are kept private. GoGuard uses them to send every update, so they are
+            never shown here.
           </p>
           <ul className="mt-3 space-y-2">
             {member.guardians.map((g) => (
@@ -466,7 +469,6 @@ function MemberCard({
                     {g.name}{" "}
                     <span className="font-normal text-muted-foreground">· {g.relationship}</span>
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">{g.email}</p>
                 </div>
                 {!isAdmin ? (
                   <span
@@ -488,8 +490,8 @@ function MemberCard({
                       variant="ghost"
                       title={
                         g.receive_general_notifications
-                          ? "Receives every update — tap to limit to own scans"
-                          : "Own scans only — tap to send every update"
+                          ? "Receives every update. Tap to limit to own scans"
+                          : "Own scans only. Tap to send every update"
                       }
                       onClick={() => toggleNotify.mutate(g)}
                     >
@@ -626,6 +628,7 @@ function AddMemberDialog({
 }) {
   const queryClient = useQueryClient();
   const branch = useBranch();
+  const me = useMe().data;
   const [m, setM] = useState({
     full_name: "",
     identifier_code: "",
@@ -635,24 +638,36 @@ function AddMemberDialog({
   });
   const [gs, setGs] = useState<GDraft[]>(() => [blankG()]);
   const [busy, setBusy] = useState(false);
+  // Headquarters accounts see every campus, so they pick one here. Branch staff
+  // are locked to their own campus by the database.
+  const defaultBranch =
+    branch.branchId ??
+    (branch.branches.length === 1 ? branch.branches[0]?.id : null) ??
+    branch.branches.find((b) => b.is_main)?.id ??
+    branch.branches[0]?.id ??
+    null;
+  const picksBranch = me?.branchId === null && branch.branches.length > 1;
+  const [targetBranch, setTargetBranch] = useState("");
+  const chosenBranch = (picksBranch ? targetBranch || defaultBranch : defaultBranch) ?? null;
 
   const upd = (key: string, patch: Partial<GDraft>) =>
     setGs((list) => list.map((g) => (g.key === key ? { ...g, ...patch } : g)));
 
-  async function upload(path: string, dataUrl: string) {
-    const { error } = await supabase.storage.from("photos").upload(path, dataUrlToBlob(dataUrl), {
-      contentType: "image/jpeg",
-      upsert: true,
-    });
-    if (error) throw error;
-    return path;
+  // Photos are stored by the server: it creates the bucket if needed, so a new
+  // school never sees "photo couldn't be uploaded".
+  const savePhoto = useServerFn(uploadProfilePhoto);
+  const emailPasses = useServerFn(sendMemberPassEmails);
+  const checkEmails = useServerFn(checkGuardianEmails);
+  const addMember = useServerFn(createMember);
+  async function upload(kind: "member" | "guardian", id: string, dataUrl: string) {
+    await savePhoto({ data: { kind, id, photo: dataUrl } });
   }
 
   async function save() {
-    const branchId =
-      branch.branchId ?? (branch.branches.length === 1 ? branch.branches[0]?.id : null);
-    if (!branchId) {
-      toast.error("Select a branch before adding a student.");
+    if (!chosenBranch) {
+      toast.error(
+        "This school has no campus set up yet, so a student can't be saved. Reload the page and try again, or contact support if it carries on.",
+      );
       return;
     }
     const email = z.string().email();
@@ -662,57 +677,100 @@ function AddMemberDialog({
       );
       return;
     }
+    if (!m.photo) {
+      toast.error(
+        `Add a clear face photo of the ${terms.member.toLowerCase()}. Every profile needs a picture so the gate can check faces.`,
+      );
+      return;
+    }
     const valid = gs.filter((g) => g.name.trim());
     if (valid.some((g) => !g.relationship.trim() || !email.safeParse(g.email.trim()).success)) {
       toast.error(`Each ${terms.guardian.toLowerCase()} needs a relationship and a valid email.`);
       return;
     }
+    if (valid.some((g) => !g.photo)) {
+      toast.error(
+        `Add a face photo for every ${terms.guardian.toLowerCase()}. The gate checks the picture before letting anyone through.`,
+      );
+      return;
+    }
     setBusy(true);
+    let createdId: string | null = null;
     try {
-      const { data: member, error } = await supabase
-        .from("members")
-        .insert({
-          org_id: orgId,
-          branch_id: branchId,
-          full_name: m.full_name.trim(),
-          identifier_code: m.identifier_code.trim() || null,
-          parent_or_owner_name: m.parent.trim() || null,
-          primary_email: m.email.trim().toLowerCase(),
-        })
-        .select("id")
-        .single();
-      if (error || !member) throw error ?? new Error("save failed");
-      if (m.photo) {
-        const path = await upload(`${orgId}/${member.id}/member.jpg`, m.photo);
-        await supabase.from("members").update({ photo_path: path }).eq("id", member.id);
+      // Each email belongs to one person across GoGuard, guardians included.
+      const { clashes } = await checkEmails({
+        data: {
+          guardians: valid.map((g) => ({
+            email: g.email.trim().toLowerCase(),
+            name: g.name.trim(),
+          })),
+        },
+      });
+      if (clashes.length) {
+        toast.error(
+          `${clashes[0]} is already used by another person in GoGuard. Each person needs their own email address.`,
+        );
+        return;
       }
-      for (const g of valid) {
-        const { data: row, error: gErr } = await supabase
-          .from("guardians")
-          .insert({
-            member_id: member.id,
-            org_id: orgId,
+      // Contacts are encrypted on the server before they are stored.
+      const created = await addMember({
+        data: {
+          orgId,
+          branchId: chosenBranch,
+          fullName: m.full_name.trim(),
+          identifierCode: m.identifier_code.trim(),
+          parentName: m.parent.trim(),
+          email: m.email.trim().toLowerCase(),
+          guardians: valid.map((g) => ({
             name: g.name.trim(),
             relationship: g.relationship.trim(),
             email: g.email.trim().toLowerCase(),
-            receive_general_notifications: g.notify,
-          })
-          .select("id")
-          .single();
-        if (gErr || !row) throw gErr ?? new Error("guardian failed");
-        if (g.photo) {
-          const path = await upload(`${orgId}/${member.id}/${row.id}.jpg`, g.photo);
-          await supabase.from("guardians").update({ photo_path: path }).eq("id", row.id);
-        }
+            notify: g.notify,
+          })),
+        },
+      });
+      createdId = created.memberId;
+      await upload("member", created.memberId, m.photo);
+      for (const g of valid) {
+        const savedGuardian = created.guardians.find(
+          (row) => row.email === g.email.trim().toLowerCase(),
+        );
+        if (savedGuardian) await upload("guardian", savedGuardian.id, g.photo!);
       }
-      toast.success(`${m.full_name} added`);
+      if (created.skipped) {
+        toast.error(
+          `${created.skipped} ${terms.guardian.toLowerCase()} could not be added because their email is already used by someone else.`,
+        );
+      }
+      // Each guardian receives their own barcode by email. A mail problem must
+      // not undo the student that was just saved.
+      let mailed = 0;
+      try {
+        const res = await emailPasses({
+          data: { memberId: created.memberId, siteUrl: window.location.origin },
+        });
+        mailed = res.sent;
+      } catch (err) {
+        console.error("[members] could not email passes", err);
+      }
+      toast.success(
+        mailed
+          ? `${m.full_name} added. ${mailed} pass ${mailed === 1 ? "email" : "emails"} sent`
+          : `${m.full_name} added`,
+      );
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["counts"] });
       setM({ full_name: "", identifier_code: "", parent: "", email: "", photo: null });
       setGs([blankG()]);
       onOpenChange(false);
-    } catch {
-      toast.error("Couldn't save. Check the details and try again.");
+    } catch (err) {
+      // Keep the directory clean: if any step fails, remove the half-saved student.
+      if (createdId) await supabase.from("members").delete().eq("id", createdId);
+      toast.error(
+        err instanceof Error && err.message
+          ? `Couldn't save: ${err.message}`
+          : "Couldn't save. Check the details and try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -728,12 +786,34 @@ function AddMemberDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {picksBranch && (
+            <Field label="Campus">
+              <select
+                aria-label="Campus"
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={chosenBranch ?? ""}
+                onChange={(e) => setTargetBranch(e.target.value)}
+              >
+                {branch.branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <div className="flex gap-4">
-            <PhotoPicker
-              value={m.photo}
-              onChange={(photo) => setM((x) => ({ ...x, photo }))}
-              label="Photo"
-            />
+            <div className="shrink-0">
+              <PhotoPicker
+                value={m.photo}
+                onChange={(photo) => setM((x) => ({ ...x, photo }))}
+                label="Face photo"
+                required
+              />
+              <p className="mt-1 w-24 text-center text-[11px] text-muted-foreground">
+                Must have a picture
+              </p>
+            </div>
             <div className="flex-1 space-y-3">
               <Field label="Full name">
                 <Input
@@ -783,7 +863,8 @@ function AddMemberDialog({
                 <PhotoPicker
                   value={g.photo}
                   onChange={(photo) => upd(g.key, { photo })}
-                  label="Picture"
+                  label="Face photo"
+                  required
                   className="size-20"
                 />
                 <div className="grid flex-1 gap-2">
@@ -848,6 +929,7 @@ function ImportDialog({
 }) {
   const queryClient = useQueryClient();
   const branch = useBranch();
+  const addMember = useServerFn(createMember);
   const [busy, setBusy] = useState(false);
 
   async function onFile(file: File) {
@@ -868,42 +950,44 @@ function ImportDialog({
       }
       let members = 0;
       let guardians = 0;
+      let skipped = 0;
       for (const list of groups.values()) {
         const first = list[0]!;
-        const { data: member, error } = await supabase
-          .from("members")
-          .insert({
-            org_id: orgId,
-            branch_id: branchId,
-            full_name: first["full_name"]!,
-            identifier_code: first["identifier_code"] || first["class"] || null,
-            parent_or_owner_name: first["parent_name"] || null,
-            primary_email: first["parent_email"]!.toLowerCase(),
-          })
-          .select("id")
-          .single();
-        if (error || !member) continue;
-        members++;
-        const gRows = list
+        // The server encrypts the contacts and refuses an address that already
+        // belongs to someone else, so the file never reaches the database as
+        // plain text.
+        const rows = list
           .filter((r) => r["guardian_name"] && r["guardian_email"])
           .slice(0, MAX_GUARDIANS)
           .map((r) => ({
-            member_id: member.id,
-            org_id: orgId,
             name: r["guardian_name"]!,
             relationship: r["guardian_relationship"] || "Guardian",
             email: r["guardian_email"]!.toLowerCase(),
-            receive_general_notifications: /^(yes|true|1|y)$/i.test(
-              r["general_notifications"] ?? "",
-            ),
+            notify: /^(yes|true|1|y)$/i.test(r["general_notifications"] ?? ""),
           }));
-        for (const g of gRows) {
-          const { error: gErr } = await supabase.from("guardians").insert(g);
-          if (!gErr) guardians++;
+        try {
+          const created = await addMember({
+            data: {
+              orgId,
+              branchId,
+              fullName: first["full_name"]!,
+              identifierCode: first["identifier_code"] || first["class"] || "",
+              parentName: first["parent_name"] || "",
+              email: first["parent_email"]!.toLowerCase(),
+              guardians: rows,
+            },
+          });
+          members++;
+          guardians += created.guardians.length;
+          skipped += created.skipped;
+        } catch {
+          continue;
         }
       }
       toast.success(
-        `Imported ${members} ${terms.members.toLowerCase()} and ${guardians} ${terms.guardians.toLowerCase()}`,
+        `Imported ${members} ${terms.members.toLowerCase()} and ${guardians} ${terms.guardians.toLowerCase()}${
+          skipped ? `, skipped ${skipped} with an email already in use` : ""
+        }`,
       );
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["counts"] });

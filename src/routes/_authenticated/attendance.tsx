@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Bus, CalendarCheck, Download, Loader2, Search, Users } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bus, CalendarCheck, Clock, Download, Loader2, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,12 +11,15 @@ import { can } from "@/lib/access";
 import { billingState } from "@/lib/billing";
 import {
   attendanceByClass,
+  DEFAULT_CUTOFF,
+  marksFromEvents,
   overallRate,
   schoolDate,
   schoolDays,
   studentAttendance,
-  type AttendanceMarks,
+  type GateMarkEvent,
   type Mark,
+  type SchoolCalendar,
 } from "@/lib/attendance";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -27,12 +30,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/attendance")({
   head: () => ({
     meta: [
-      { title: "Attendance — GoGuard" },
+      { title: "Attendance, GoGuard" },
       {
         name: "description",
         content: "Class attendance counted automatically from gate scans and bus rides.",
       },
-      { property: "og:title", content: "Attendance — GoGuard" },
+      { property: "og:title", content: "Attendance, GoGuard" },
       {
         property: "og:description",
         content: "Class attendance counted automatically from gate scans and bus rides.",
@@ -104,24 +107,76 @@ function AttendancePage() {
     },
   });
 
+  // The school's own week and the moment attendance is decided. Read with a
+  // plain select so a database that hasn't had the settings columns added yet
+  // still loads the page on the Monday–Friday, 10:00 defaults.
+  const settings = useQuery({
+    queryKey: ["attendance", "settings", org.id],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("organizations").select("*").eq("id", org.id).maybeSingle();
+      const row = data as unknown as {
+        attendance_cutoff?: string | null;
+        school_calendar?: SchoolCalendar | null;
+      } | null;
+      return {
+        cutoff: (row?.attendance_cutoff ?? DEFAULT_CUTOFF).slice(0, 5),
+        calendar: (row?.school_calendar ?? {}) as SchoolCalendar,
+        available: row?.attendance_cutoff != null || row?.school_calendar != null,
+      };
+    },
+  });
+  const cutoff = settings.data?.cutoff ?? DEFAULT_CUTOFF;
+  const calendar = settings.data?.calendar ?? {};
+
   const marks = useQuery({
-    queryKey: ["attendance", "marks", org.id, from, to],
+    queryKey: ["attendance", "events", org.id, branchId, from, to, cutoff],
     enabled: from <= to,
     queryFn: async () => {
-      const all: AttendanceMarks[] = [];
+      const start = `${from}T00:00:00+01:00`;
+      const end = `${shift(to, 1)}T00:00:00+01:00`;
+      const events: GateMarkEvent[] = [];
       for (let i = 0; ; i += PAGE) {
-        const { data, error } = await supabase
-          .rpc("attendance_marks", { _from: from, _to: to })
-          .range(i, i + PAGE - 1);
+        const { data, error } = await inBranch(
+          supabase
+            .from("gate_logs")
+            .select("member_id, action_type, timestamp")
+            .eq("org_id", org.id)
+            .gte("timestamp", start)
+            .lt("timestamp", end)
+            .order("timestamp")
+            .order("id"),
+          branchId,
+        ).range(i, i + PAGE - 1);
         if (error) throw error;
-        all.push(...((data ?? []) as AttendanceMarks[]));
+        events.push(...((data ?? []) as GateMarkEvent[]));
         if (!data || data.length < PAGE) break;
       }
-      return all;
+      const { data: busLogs } = await supabase
+        .from("pupil_bus_logs")
+        .select("member_id, timestamp")
+        .eq("org_id", org.id)
+        .eq("status", "boarded")
+        .gte("timestamp", start)
+        .lt("timestamp", end);
+      const byMember = new Map<string, Set<string>>();
+      for (const log of busLogs ?? []) {
+        const set = byMember.get(log.member_id) ?? new Set<string>();
+        set.add(schoolDate(new Date(log.timestamp)));
+        byMember.set(log.member_id, set);
+      }
+      return marksFromEvents(
+        events,
+        [...byMember].map(([member_id, dayset]) => ({ member_id, bus_days: [...dayset] })),
+        cutoff,
+      );
     },
   });
 
-  const days = useMemo(() => (from <= to ? schoolDays(from, to, today) : []), [from, to, today]);
+  const days = useMemo(
+    () => (from <= to ? schoolDays(from, to, today, { ...calendar, cutoff }) : []),
+    [from, to, today, calendar, cutoff],
+  );
   const students = useMemo(
     () => studentAttendance(members.data ?? [], marks.data ?? [], days),
     [members.data, marks.data, days],
@@ -155,23 +210,36 @@ function AttendancePage() {
   const exportOpen = billingState(org).canExport;
   const recent = days.slice(-10);
 
-  async function download() {
+  /** One Excel workbook, for every visible class, or for a single class. */
+  async function download(onlyClass?: string | null) {
     if (!exportOpen) return;
     setBusy(true);
     try {
       const { attendanceSheets, downloadAttendanceWorkbook } =
         await import("@/lib/attendance-excel");
+      const classes = onlyClass
+        ? visible.filter((c) => keyOf(c.label) === onlyClass)
+        : visible;
+      if (!classes.length) {
+        toast.error("Nothing to download for this class yet.");
+        setBusy(false);
+        return;
+      }
       const sheets = attendanceSheets({
-        orgName: branch ? `${org.name} — ${branch.name}` : org.name,
+        orgName: branch ? `${org.name}, ${branch.name}` : org.name,
         from,
         to,
         days,
-        classes: visible,
+        classes,
       });
       const slug = org.name.replace(/\W+/g, "-").toLowerCase();
-      const filter =
-        classFilter === "all" ? "" : `-${classFilter.replace(/\W+/g, "-").toLowerCase()}`;
+      const filter = onlyClass
+        ? `-${(classes[0]?.label ?? "class").replace(/\W+/g, "-").toLowerCase()}`
+        : classFilter === "all"
+          ? ""
+          : `-${classFilter.replace(/\W+/g, "-").toLowerCase()}`;
       await downloadAttendanceWorkbook(sheets, `attendance-${slug}${filter}-${from}-to-${to}.xlsx`);
+      toast.success(onlyClass ? "Class workbook downloaded" : "Workbook downloaded");
     } catch {
       toast.error("Couldn't create the Excel file. Please try again.");
     }
@@ -189,9 +257,9 @@ function AttendancePage() {
         </div>
         {canDownload && (
           <div className="flex flex-col items-end gap-1">
-            <Button
+                          <Button
               variant="signal"
-              onClick={download}
+              onClick={() => void download()}
               disabled={busy || loading || !days.length || !exportOpen}
             >
               {busy ? <Loader2 className="animate-spin" /> : <Download />} Download Excel (visible)
@@ -207,6 +275,10 @@ function AttendancePage() {
           </div>
         )}
       </div>
+
+      {can(!!me?.isAdmin, "export_reports") && (
+        <AttendanceSettings org={org} cutoff={cutoff} calendar={calendar} available={settings.data?.available ?? false} />
+      )}
 
       <div className="grid gap-3 rounded-2xl border bg-card p-4 sm:grid-cols-2">
         <div className="flex flex-wrap gap-2 sm:col-span-2">
@@ -258,18 +330,18 @@ function AttendancePage() {
           icon={CalendarCheck}
           label="School days"
           value={String(days.length)}
-          hint="Monday to Friday"
+          hint="Your school calendar"
         />
         <Stat
           icon={Users}
           label="Average attendance"
-          value={rate === null ? "—" : `${rate}%`}
+          value={rate === null ? "-" : `${rate}%`}
           hint={`${students.length} students`}
         />
         <Stat
           icon={Bus}
           label="Present today"
-          value={presentToday === null ? "—" : `${presentToday} / ${students.length}`}
+          value={presentToday === null ? "-" : `${presentToday} / ${students.length}`}
           hint={todayInRange ? "Gate or bus" : "Today isn't in this period"}
         />
       </div>
@@ -334,9 +406,22 @@ function AttendancePage() {
                     {c.students.length} {c.students.length === 1 ? "student" : "students"}
                   </p>
                 </div>
-                <span className="font-display text-xl font-bold">
-                  {c.rate === null ? "—" : `${c.rate}%`}
-                </span>
+                <div className="flex items-center gap-2">
+                  {canDownload && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy || !days.length || !exportOpen || !c.students.length}
+                      onClick={() => void download(keyOf(c.label))}
+                      aria-label={`Download ${c.label ?? "this class"} attendance`}
+                    >
+                      <Download className="size-4" /> Excel
+                    </Button>
+                  )}
+                  <span className="font-display text-xl font-bold">
+                    {c.rate === null ? "-" : `${c.rate}%`}
+                  </span>
+                </div>
               </header>
               {c.students.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground">
@@ -368,7 +453,7 @@ function AttendancePage() {
                           s.rate !== null && s.rate < 75 ? "text-checkout" : "text-foreground",
                         )}
                       >
-                        {s.rate === null ? "—" : `${s.rate}%`}
+                        {s.rate === null ? "-" : `${s.rate}%`}
                       </span>
                     </li>
                   ))}
@@ -380,6 +465,145 @@ function AttendancePage() {
       )}
     </div>
   );
+}
+
+/**
+ * The two things a school decides for attendance: which days it is open, and
+ * the time of day a pupil's presence is confirmed.
+ */
+function AttendanceSettings({
+  org,
+  cutoff,
+  calendar,
+  available,
+}: {
+  org: { id: string; classes: string[] };
+  cutoff: string;
+  calendar: SchoolCalendar;
+  available: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [time, setTime] = useState(cutoff);
+  const [weekdays, setWeekdays] = useState<number[]>(
+    calendar.weekdays?.length ? calendar.weekdays : [1, 2, 3, 4, 5],
+  );
+  const [holidays, setHolidays] = useState((calendar.holidays ?? []).join(", "));
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("organizations")
+        .update({
+          attendance_cutoff: time,
+          // Keep every other setting already in this block (the parent app
+          // reads its call switches from here) instead of replacing it whole.
+          school_calendar: {
+            ...calendar,
+            weekdays,
+            holidays: holidays
+              .split(",")
+              .map((d) => d.trim())
+              .filter(Boolean),
+          },
+        } as never)
+        .eq("id", org.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Attendance settings saved");
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    },
+    onError: () =>
+      toast.error("This needs the one-time attendance setup. Please ask us to switch it on."),
+  });
+
+  const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <section className="rounded-2xl border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="flex items-center gap-2 font-semibold">
+            <Clock className="size-4" /> Attendance is taken at {cutoff}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            A pupil who goes home before {cutoff} is marked absent · {daysLabel(weekdays)}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)}>
+          {open ? "Close" : "Change"}
+        </Button>
+      </div>
+
+      {open && (
+        <div className="mt-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="att-cutoff">Time attendance is taken</Label>
+            <Input
+              id="att-cutoff"
+              type="time"
+              value={time}
+              onChange={(e) => e.target.value && setTime(e.target.value)}
+              className="sm:w-40"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>School days</Label>
+            <div className="flex flex-wrap gap-2">
+              {names.map((label, day) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() =>
+                    setWeekdays((w) =>
+                      w.includes(day) ? w.filter((d) => d !== day) : [...w, day].sort(),
+                    )
+                  }
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-sm font-medium",
+                    weekdays.includes(day)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="att-holidays">Holidays</Label>
+            <Input
+              id="att-holidays"
+              value={holidays}
+              onChange={(e) => setHolidays(e.target.value)}
+              placeholder="2026-12-25, 2026-12-26"
+            />
+            <p className="text-xs text-muted-foreground">
+              Dates the school is closed, as yyyy-mm-dd, separated by commas.
+            </p>
+          </div>
+          {!available && (
+            <p className="rounded-xl bg-signal/15 p-3 text-sm">
+              One-time setup is still needed before these settings can be saved. Until then
+              attendance uses Monday to Friday and {DEFAULT_CUTOFF}.
+            </p>
+          )}
+          <Button variant="signal" disabled={save.isPending} onClick={() => save.mutate()}>
+            {save.isPending && <Loader2 className="animate-spin" />} Save attendance settings
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function daysLabel(weekdays: number[]): string {
+  const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  if (!weekdays.length) return "No school days chosen";
+  if (weekdays.length === 1) return `Every ${names[weekdays[0]!]}`;
+  return weekdays.map((d) => names[d]).join(" · ");
 }
 
 function Stat({

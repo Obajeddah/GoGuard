@@ -1,7 +1,8 @@
 export interface RecipientGuardian {
   id: string;
   name: string;
-  email: string;
+  /** Null when the stored address could not be read; such a guardian is skipped. */
+  email: string | null;
   receive_general_notifications: boolean;
 }
 

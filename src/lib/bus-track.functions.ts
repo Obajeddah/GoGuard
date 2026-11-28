@@ -22,10 +22,11 @@ export const getBusTracking = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { readContact, CONTACT_ORG_PHONE } = await import("@/lib/contact-crypto.server");
     const { data: m } = await supabaseAdmin
       .from("members")
       .select(
-        "id, org_id, full_name, identifier_code, uses_bus, bus_id, primary_email, branch:branches(name), org:organizations(name, emergency_phone)",
+        "id, org_id, full_name, identifier_code, uses_bus, bus_id, primary_email, parent_email_hash, branch:branches(name), org:organizations(name, emergency_phone, emergency_phone_enc)",
       )
       .eq("bus_track_token", data.token.toLowerCase())
       .maybeSingle();
@@ -35,14 +36,17 @@ export const getBusTracking = createServerFn({ method: "GET" })
     });
     if (!transport) return null;
 
-    // Other bus children registered by the same parent email at this school (any branch).
-    const { data: sibs } = await supabaseAdmin
+    // Other bus children registered by the same parent at this school (any
+    // branch). Matched on the blind index; the legacy column is the fallback
+    // for rows the backfill has not reached yet.
+    const siblingQuery = supabaseAdmin
       .from("members")
       .select("full_name, bus_track_token, branch:branches(name), bus:buses(bus_number)")
       .eq("org_id", m.org_id)
-      .eq("primary_email", m.primary_email)
-      .eq("uses_bus", true)
-      .order("full_name");
+      .eq("uses_bus", true);
+    const { data: sibs } = m.parent_email_hash
+      ? await siblingQuery.eq("parent_email_hash", m.parent_email_hash).order("full_name")
+      : await siblingQuery.eq("primary_email", m.primary_email ?? "").order("full_name");
     const children = (sibs ?? []).map((c) => ({
       name: c.full_name,
       token: c.bus_track_token,
@@ -57,7 +61,11 @@ export const getBusTracking = createServerFn({ method: "GET" })
       branchName: (m.branch as { name: string } | null)?.name ?? null,
       className: m.identifier_code,
       orgName: m.org.name,
-      emergencyPhone: m.org.emergency_phone,
+      emergencyPhone: readContact(
+        m.org.emergency_phone_enc,
+        m.org.emergency_phone,
+        CONTACT_ORG_PHONE,
+      ),
     };
     if (!m.bus_id) return { ...base, bus: null, ride: null, child: null, lastSeen: null };
 

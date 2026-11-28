@@ -252,7 +252,7 @@ BEGIN
   IF array_length(v_parts, 1) > 0 THEN
     INSERT INTO public.transport_notices (org_id, bus_id, kind, message)
     VALUES (NEW.org_id, NEW.bus_id, 'crew_change',
-      'Driver/Attendant update for Bus ' || COALESCE(v_bus, '') || ' — ' || array_to_string(v_parts, ', '));
+      'Driver/Attendant update for Bus ' || COALESCE(v_bus, '') || ': ' || array_to_string(v_parts, ', '));
   END IF;
   RETURN NEW;
 END;

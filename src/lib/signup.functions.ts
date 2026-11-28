@@ -79,7 +79,7 @@ export const checkOrgEmail = createServerFn({ method: "POST" })
           }
         }
       } catch {
-        // DNS lookup unavailable — fall back to the policy check only.
+        // DNS lookup unavailable, fall back to the policy check only.
       }
 
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -88,7 +88,20 @@ export const checkOrgEmail = createServerFn({ method: "POST" })
         .insert({ email: data.email.toLowerCase(), plan: signupPlan(data.plan) })
         .select("id")
         .single();
-      if (error || !ticket) return { ok: false, error: "Something went wrong. Please try again." };
+      if (error || !ticket) {
+        console.error(
+          "[signup] signup_tickets insert failed",
+          JSON.stringify({
+            message: error?.message,
+            code: error?.code,
+            details: error?.details,
+            hint: error?.hint,
+            raw: error ?? null,
+            hasTicket: Boolean(ticket),
+          }),
+        );
+        return { ok: false, error: "Something went wrong. Please try again." };
+      }
       return { ok: true, ticket: ticket.id };
     },
   );

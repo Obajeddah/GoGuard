@@ -14,6 +14,7 @@ import { AppShell } from "@/components/app-shell";
 import { PlanCards } from "@/components/plan-cards";
 import { billingState, type PlanId } from "@/lib/billing";
 import { startCheckout } from "@/lib/payment.functions";
+import { saveOrgEmergencyLine } from "@/lib/org-contact.functions";
 import { format } from "date-fns";
 import { Field } from "@/components/auth-frame";
 import { Button } from "@/components/ui/button";
@@ -24,12 +25,12 @@ import { MAX_CLASSES, normaliseClasses, PRESET_CLASSES } from "@/lib/classes";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — GoGuard" },
+      { title: "Settings · GoGuard" },
       {
         name: "description",
         content: "Manage your organisation profile, emergency line and gate staff accounts.",
       },
-      { property: "og:title", content: "Settings — GoGuard" },
+      { property: "og:title", content: "Settings · GoGuard" },
       {
         property: "og:description",
         content: "Manage your organisation profile, emergency line and gate staff accounts.",
@@ -54,6 +55,7 @@ function SettingsPage() {
       </div>
       <OrgProfile />
       <Classes />
+      <ParentAppSettings />
       <Transport />
       <Billing />
       <SchoolSecurity />
@@ -74,14 +76,18 @@ function OrgProfile() {
     setPhone(org.emergency_phone ?? "");
   }, [org.name, org.emergency_phone]);
 
+  const saveEmergencyLine = useServerFn(saveOrgEmergencyLine);
   const save = useMutation({
     mutationFn: async () => {
       if (name.trim().length < 2) throw new Error("Enter your organisation's name.");
       const { error } = await supabase
         .from("organizations")
-        .update({ name: name.trim(), emergency_phone: phone.trim() || null })
+        .update({ name: name.trim() })
         .eq("id", org.id);
       if (error) throw new Error("Couldn't save your changes. Please try again.");
+      // The line is encrypted server-side, so it never travels to the database
+      // as plain text from the browser.
+      await saveEmergencyLine({ data: { phone: phone.trim() } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["me"] });
@@ -130,6 +136,145 @@ function OrgProfile() {
           )}
         </div>
       </form>
+    </section>
+  );
+}
+
+function ParentAppSettings() {
+  const { data: me } = useMe();
+  const org = me!.org!;
+  const queryClient = useQueryClient();
+  const settings = useQuery({
+    queryKey: ["parent-app-settings", org.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("*")
+        .eq("id", org.id)
+        .maybeSingle();
+      const row = data as unknown as {
+        allow_parent_calls?: boolean | null;
+        school_closes_at?: string | null;
+        school_calendar?: {
+          parent_app?: { allow_driver_calls?: boolean; allow_attendant_calls?: boolean };
+        } | null;
+      } | null;
+      // The two switches are kept in the settings block every school already
+      // has, so turning a call button off saves and reaches the parent app
+      // straight away.
+      const savedCalls = row?.school_calendar?.parent_app;
+      const callsOn = row?.allow_parent_calls !== false;
+      return {
+        allowDriver: savedCalls?.allow_driver_calls ?? callsOn,
+        allowAttendant: savedCalls?.allow_attendant_calls ?? callsOn,
+        closesAt: (row?.school_closes_at ?? "15:00").slice(0, 5),
+        calendar: row?.school_calendar ?? {},
+        available: row?.school_calendar != null,
+      };
+    },
+  });
+
+  const [allowDriver, setAllowDriver] = useState(true);
+  const [allowAttendant, setAllowAttendant] = useState(true);
+  const [closesAt, setClosesAt] = useState("15:00");
+  useEffect(() => {
+    if (!settings.data) return;
+    setAllowDriver(settings.data.allowDriver);
+    setAllowAttendant(settings.data.allowAttendant);
+    setClosesAt(settings.data.closesAt);
+  }, [settings.data]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const calendar = (settings.data?.calendar ?? {}) as Record<string, unknown>;
+      const { error } = await supabase
+        .from("organizations")
+        .update({
+          allow_parent_calls: allowDriver || allowAttendant,
+          school_closes_at: closesAt,
+          school_calendar: {
+            ...calendar,
+            parent_app: {
+              allow_driver_calls: allowDriver,
+              allow_attendant_calls: allowAttendant,
+            },
+          },
+        } as never)
+        .eq("id", org.id);
+      if (error) throw new Error("Couldn't save these settings. Please try again.");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parent-app-settings"] });
+      toast.success("Parent app settings saved");
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Couldn't save these settings. Please try again."),
+  });
+
+  return (
+    <section className="rounded-3xl border bg-card p-5 sm:p-6">
+      <h2 className="text-lg font-bold">Parent app</h2>
+      <p className="text-sm text-muted-foreground">
+        What parents can do from their own screen, and when the school day ends.
+      </p>
+
+      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-2xl bg-muted/60 p-4">
+        <Checkbox
+          checked={allowDriver}
+          onCheckedChange={(v) => setAllowDriver(v === true)}
+          className="mt-0.5 size-5"
+        />
+        <span className="text-sm">
+          <span className="block font-medium">Let parents call the driver</span>
+          <span className="text-muted-foreground">
+            Shows a call button for the bus driver on the parent app.
+          </span>
+        </span>
+      </label>
+
+      <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-2xl bg-muted/60 p-4">
+        <Checkbox
+          checked={allowAttendant}
+          onCheckedChange={(v) => setAllowAttendant(v === true)}
+          className="mt-0.5 size-5"
+        />
+        <span className="text-sm">
+          <span className="block font-medium">Let parents call the attendant</span>
+          <span className="text-muted-foreground">
+            Shows a call button for the bus attendant on the parent app.
+          </span>
+        </span>
+      </label>
+
+      <div className="mt-4 max-w-xs space-y-1.5">
+        <Field label="School closes at">
+          <Input
+            type="time"
+            value={closesAt}
+            onChange={(e) => e.target.value && setClosesAt(e.target.value)}
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          If a pupil is still at school, parents get one warning 30 minutes after this time and one
+          an hour after, then no more.
+        </p>
+      </div>
+
+      {!settings.data?.available && (
+        <p className="mt-4 rounded-xl bg-signal/15 p-3 text-sm">
+          One-time setup is still needed before these settings can be saved. Until then parents can
+          call the crew and the school day is treated as ending at 15:00.
+        </p>
+      )}
+
+      <Button
+        className="mt-4"
+        variant="signal"
+        disabled={save.isPending}
+        onClick={() => save.mutate()}
+      >
+        {save.isPending && <Loader2 className="animate-spin" />} Save parent app settings
+      </Button>
     </section>
   );
 }

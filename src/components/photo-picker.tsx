@@ -20,6 +20,7 @@ export function PhotoPicker({
 }) {
   const id = useId();
   const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
   return (
     <label
       htmlFor={id}
@@ -47,21 +48,30 @@ export function PhotoPicker({
           <Camera className="size-3" /> Change
         </span>
       )}
+      {hint && (
+        <span className="absolute -bottom-5 left-0 w-full text-center text-[10px] leading-tight text-destructive">
+          {hint}
+        </span>
+      )}
       <input
         id={id}
         type="file"
-        accept="image/*"
-        capture="user"
+        // No `capture` attribute: phones then offer the camera *and* the photo
+        // library, so a saved picture can be picked instead of only a new shot.
+        accept="image/jpeg,image/png,image/webp,image/*"
         className="sr-only"
         onChange={async (e) => {
           const file = e.target.files?.[0];
           e.target.value = "";
           if (!file) return;
+          setHint(null);
           setBusy(true);
           try {
             onChange(await resizeImageToDataUrl(file));
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Could not use that photo");
+            const message = err instanceof Error ? err.message : "Could not use that photo";
+            setHint(message);
+            toast.error(message);
           } finally {
             setBusy(false);
           }

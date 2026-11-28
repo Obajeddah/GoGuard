@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
@@ -11,6 +12,7 @@ import {
   LogOut,
   MapPinOff,
   Navigation,
+  PhoneCall,
   QrCode,
   RefreshCw,
   ShieldAlert,
@@ -37,6 +39,8 @@ import {
   type TripDirection,
 } from "@/lib/bus";
 import { enqueue, loadQueue, newId, saveQueue, sendOrder, type QueueItem } from "@/lib/bus-offline";
+import { alertFleet, notifyRideEvent } from "@/lib/bus-notify.functions";
+import { drainParentEmails } from "@/lib/email-retry.functions";
 import { checkPass, PASS_REJECTION } from "@/lib/pass-check";
 import { beep, extractPassHash } from "@/lib/beep";
 import { Button } from "@/components/ui/button";
@@ -46,12 +50,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/bus-app")({
   head: () => ({
     meta: [
-      { title: "Bus app — GoGuard" },
+      { title: "Bus app, GoGuard" },
       {
         name: "description",
         content: "Start a school bus ride, board and drop off pupils, and share the bus location.",
       },
-      { property: "og:title", content: "Bus app — GoGuard" },
+      { property: "og:title", content: "Bus app, GoGuard" },
       {
         property: "og:description",
         content: "Start a school bus ride, board and drop off pupils, and share the bus location.",
@@ -68,6 +72,7 @@ interface BusInfo {
   plate_number: string;
   route_axis: string;
   driver_name: string | null;
+  driver_phone: string | null;
   attendant_name: string | null;
 }
 
@@ -85,13 +90,17 @@ function BusAppPage() {
       if (me!.isAdmin) {
         const { data } = await supabase
           .from("buses")
-          .select("id, bus_number, plate_number, route_axis, driver_name, attendant_name")
+          .select(
+            "id, bus_number, plate_number, route_axis, driver_name, driver_phone, attendant_name",
+          )
           .order("bus_number");
         return data ?? [];
       }
       const { data } = await supabase
         .from("buses")
-        .select("id, bus_number, plate_number, route_axis, driver_name, attendant_name")
+        .select(
+          "id, bus_number, plate_number, route_axis, driver_name, driver_phone, attendant_name",
+        )
         .eq("login_user_id", me!.userId)
         .eq("login_active", true);
       return data ?? [];
@@ -267,6 +276,9 @@ function BusConsole({
   onSwitchBus?: (() => void) | undefined;
 }) {
   const queryClient = useQueryClient();
+  const notifyRide = useServerFn(notifyRideEvent);
+  const alertBus = useServerFn(alertFleet);
+  const drain = useServerFn(drainParentEmails);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queueRef = useRef<QueueItem[]>([]);
   const [online, setOnline] = useState(true);
@@ -463,13 +475,45 @@ function BusConsole({
         }
         if (error && (item.kind === "emergency" || item.kind === "location_pause")) break;
         if (error && !error.code) break; // network problem: keep everything for the next try
+        // Ending the ride is what parents see. If the write fails it must stay
+        // queued and be retried, or the bus keeps showing "on route" at home.
+        if (error && item.kind === "trip_end") {
+          toast.error("The ride didn't end on the server. It will retry by itself.");
+          break;
+        }
         if (error && item.kind === "log")
           toast.error(`A record couldn't be saved: ${error.message}`);
+        // Saved: tell the school feed and email the parents straight away. A
+        // mail or network problem here must never block the next pupil.
+        if (!error && item.kind === "log") {
+          void notifyRide({
+            data: {
+              tripId: item.log.trip_id,
+              memberId: item.log.member_id,
+              status: item.log.status,
+              guardianId: item.log.guardian_id ?? null,
+            },
+          }).catch(() => {});
+        }
+        if (!error && item.kind === "emergency") {
+          void alertBus({
+            data: {
+              busId: item.emergency.bus_id,
+              tripId: item.emergency.trip_id ?? null,
+              kind: "driver_emergency",
+              lat: item.emergency.lat ?? null,
+              lng: item.emergency.lng ?? null,
+            },
+          }).catch(() => {});
+        }
         persistQueue(queueRef.current.filter((q) => q.id !== item.id));
       }
     } finally {
       flushingRef.current = false;
       setSyncing(false);
+      // Safety net: anything that failed to send during this sync (or an earlier
+      // one) is retried now, so a parent never misses a boarding.
+      void drain({ data: { limit: 10 } }).catch(() => {});
       void serverLogs.refetch();
       void serverTrip.refetch();
     }
@@ -680,6 +724,24 @@ function BusConsole({
     void flush();
   }
 
+  /** Leaving the device during a ride is reported to the school: a bus with no
+   * login can no longer share its location, which is exactly what a tamper
+   * looks like from the office. */
+  function leaveDevice() {
+    if (canOperate && trip) {
+      void alertBus({
+        data: {
+          busId: bus.id,
+          tripId: trip.id,
+          kind: "driver_logout",
+          lat: null,
+          lng: null,
+        },
+      }).catch(() => {});
+    }
+    onSignOut();
+  }
+
   function tap(pupil: Pupil) {
     if (!trip || !canOperate) return;
     const action = nextAction(states.get(pupil.id) ?? "waiting");
@@ -702,7 +764,7 @@ function BusConsole({
     <>
       <TopBar
         isAdmin={isAdmin}
-        onSignOut={onSignOut}
+        onSignOut={leaveDevice}
         right={
           <span
             className={cn(
@@ -728,6 +790,13 @@ function BusConsole({
         <p className="mt-3 text-sm text-muted-foreground">
           Watching Bus {bus.bus_number}. Only the bus login shares location.
         </p>
+      )}
+      {isAdmin && bus.driver_phone && (
+        <Button asChild variant="outline" className="mt-3 w-full">
+          <a href={`tel:${bus.driver_phone.replace(/[^+0-9]/g, "")}`}>
+            <PhoneCall /> Call driver{bus.driver_name ? ` (${bus.driver_name})` : ""}
+          </a>
+        </Button>
       )}
       {canOperate && <EmergencyButton onFire={raiseEmergency} />}
       {/* Bus header */}
@@ -1342,7 +1411,7 @@ function EmergencyButton({ onFire }: { onFire: () => Promise<boolean> }) {
     <Button
       variant="destructive"
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] right-4 z-[60] touch-none overflow-hidden"
-      aria-label="Emergency — hold for one second"
+      aria-label="Emergency. Hold for one second"
       disabled={state !== "ready"}
       onPointerDown={(event) => {
         if (event.button !== 0) return;

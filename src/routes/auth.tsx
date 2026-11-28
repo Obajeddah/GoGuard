@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import { accessOf, meQueryOptions } from "@/hooks/use-me";
@@ -15,12 +16,12 @@ import { saveRememberChoice } from "@/lib/remember-me";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — GoGuard" },
+      { title: "Sign in · GoGuard" },
       {
         name: "description",
         content: "Sign in to GoGuard as a school administrator or member of gate staff.",
       },
-      { property: "og:title", content: "Sign in — GoGuard" },
+      { property: "og:title", content: "Sign in · GoGuard" },
       {
         property: "og:description",
         content: "Sign in to GoGuard as a school administrator or member of gate staff.",
@@ -30,9 +31,25 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+/**
+ * The verification emails link to /auth?token_hash=…&type=… so the link a
+ * parent or school sees stays on goguard.ng instead of pointing at the
+ * Supabase project URL. The token is swapped for a session here.
+ */
+function readConfirmLink(): { tokenHash: string; type: string } | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const tokenHash = params.get("token_hash");
+  if (!tokenHash) return null;
+  return { tokenHash, type: params.get("type") || "email" };
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [confirmLink] = useState(readConfirmLink);
+  const [confirming, setConfirming] = useState(() => readConfirmLink() !== null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [mode, setMode] = useState<"signin" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +57,38 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!confirmLink) return;
+    let cancelled = false;
+    const attempt = (type: string) =>
+      supabase.auth.verifyOtp({ token_hash: confirmLink.tokenHash, type: type as EmailOtpType });
+
+    (async () => {
+      let { error } = await attempt(confirmLink.type);
+      if (error && confirmLink.type !== "email") ({ error } = await attempt("email"));
+      if (cancelled) return;
+      // Drop the token from the address bar whether it worked or not.
+      window.history.replaceState({}, "", window.location.pathname);
+      if (error) {
+        setConfirming(false);
+        setConfirmError(
+          /expired|invalid/i.test(error.message)
+            ? "That verification link has expired or was already used. Sign in below, or use \"Forgot password?\" to get a new one."
+            : error.message,
+        );
+        return;
+      }
+      const me = await queryClient.fetchQuery({ ...meQueryOptions, staleTime: 0 });
+      if (cancelled) return;
+      setConfirming(false);
+      navigate({ to: homeFor(accessOf(me)) });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [confirmLink, navigate, queryClient]);
 
   async function onSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +118,18 @@ function AuthPage() {
     });
     setBusy(false);
     setNotice("If an account exists for that email, we've sent a reset link.");
+  }
+
+  if (confirming) {
+    return (
+      <AuthFrame>
+        <div className="text-center">
+          <Loader2 className="mx-auto size-7 animate-spin text-primary" />
+          <h1 className="mt-5 text-2xl font-bold">Confirming your email</h1>
+          <p className="mt-2 text-muted-foreground">One moment while we finish setting up.</p>
+        </div>
+      </AuthFrame>
+    );
   }
 
   return (
@@ -106,9 +167,9 @@ function AuthPage() {
               />
               Keep me signed in for 90 days
             </label>
-            {error && (
+            {(confirmError || error) && (
               <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
+                {confirmError || error}
               </p>
             )}
             <Button type="submit" size="lg" className="w-full" disabled={busy}>

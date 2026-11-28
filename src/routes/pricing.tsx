@@ -9,13 +9,13 @@ import { TRIAL_DAYS } from "@/lib/billing";
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing — GoGuard" },
+      { title: "Pricing · GoGuard" },
       {
         name: "description",
         content:
           "GoGuard for schools: Basic Gate ₦7,500/month with a 14-day free trial, School Standard ₦14,800/month with buses, Multi-School Group ₦19,200/month for several branches.",
       },
-      { property: "og:title", content: "Pricing — GoGuard" },
+      { property: "og:title", content: "Pricing · GoGuard" },
       {
         property: "og:description",
         content: "From ₦7,500 a month. Basic Gate starts with a 14-day free trial.",

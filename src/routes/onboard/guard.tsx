@@ -12,6 +12,7 @@ const searchSchema = z.object({
   org: z.string().uuid(),
   branch: z.string().uuid(),
   code: z.string().regex(/^[a-f0-9]{64}$/i),
+  role: z.enum(["guard", "admin"]).optional(),
 });
 export const Route = createFileRoute("/onboard/guard")({
   validateSearch: (input) => {
@@ -20,9 +21,9 @@ export const Route = createFileRoute("/onboard/guard")({
   },
   head: () => ({
     meta: [
-      { title: "Join your school gate team — GoGuard" },
+      { title: "Join your school gate team · GoGuard" },
       { name: "description", content: "Request guard access for your school's branch." },
-      { property: "og:title", content: "Join your school gate team — GoGuard" },
+      { property: "og:title", content: "Join your school gate team · GoGuard" },
       { property: "og:description", content: "Request guard access for your school's branch." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -42,13 +43,24 @@ function GuardOnboarding() {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const isAdminInvite = info.data?.role === "admin" || invite.role === "admin";
   return (
     <AuthFrame>
-      <h1 className="text-2xl font-bold">{sent ? "Request submitted" : "Join the gate team"}</h1>
+      <h1 className="text-2xl font-bold">
+        {sent
+          ? isAdminInvite
+            ? "Administrator account ready"
+            : "Request submitted"
+          : isAdminInvite
+            ? "Set up your branch administrator account"
+            : "Join the gate team"}
+      </h1>
       {sent ? (
         <>
           <p className="mt-3 text-muted-foreground">
-            Your school administrator will review your request before you can scan passes.
+            {isAdminInvite
+              ? "You can sign in now and manage your branch."
+              : "Your school administrator will review your request before you can scan passes."}
           </p>
           <Button asChild className="mt-5">
             <Link to="/auth">Sign in</Link>
@@ -122,7 +134,7 @@ function GuardOnboarding() {
             </Field>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={busy}>
-              Request access
+              {isAdminInvite ? "Create administrator account" : "Request access"}
             </Button>
           </form>
         </>

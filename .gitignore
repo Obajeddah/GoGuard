@@ -17,7 +17,7 @@ dist-ssr
 .netlify
 *.local
 
-# Environment / secrets — ignore all env files including template
+# Environment / secrets: ignore all env files including template
 .env
 .env.*
 

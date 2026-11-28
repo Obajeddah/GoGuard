@@ -13,9 +13,9 @@ export const Route = createFileRoute("/_authenticated/payment")({
   validateSearch: z.object({ reference: z.string().optional().catch(undefined) }),
   head: () => ({
     meta: [
-      { title: "Payment — GoGuard" },
+      { title: "Payment · GoGuard" },
       { name: "description", content: "Confirming your GoGuard subscription payment." },
-      { property: "og:title", content: "Payment — GoGuard" },
+      { property: "og:title", content: "Payment · GoGuard" },
       { property: "og:description", content: "Confirming your GoGuard subscription payment." },
     ],
   }),

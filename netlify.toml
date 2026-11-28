@@ -3,8 +3,24 @@
   publish = "dist/client"
 
 [build.environment]
+  VITE_SUPABASE_URL = "https://odzonzxwqlhmcmyqhqcb.supabase.co"
+  VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_S6Wi55KbRRXnyIgh_CSvNA_P46r3e-u"
+  VITE_SUPABASE_PROJECT_ID = "odzonzxwqlhmcmyqhqcb"
+  VITE_TURNSTILE_SITE_KEY = "0x4AAAAAAGTJ1cWng-5lVjqz"
+  VITE_VAPID_PUBLIC_KEY = "BOPPOyc_9NzEsjZojbQI7QfvI8D0aNfCB0SCyG08Ab-WAp9b-hnKgkYQcVBdy_jnSQ0S0keMAf4xPA18DFgrH1Q"
   NODE_VERSION = "22.17.0"
   BUN_VERSION = "1.4.4"
+
+# App manifests need their proper type or a browser won't offer to install.
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/parent-manifest.json"
+  [headers.values]
+    Content-Type = "application/manifest+json"
 
 # Token-bearing public pages must never be indexed.
 [[headers]]

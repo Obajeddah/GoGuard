@@ -1,9 +1,21 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ClientOnly, createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNowStrict } from "date-fns";
-import { Bus, Eye, Gauge, Loader2, MapPin, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import {
+  Bus,
+  Eye,
+  Gauge,
+  Loader2,
+  MapPin,
+  PhoneCall,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +35,7 @@ import {
 } from "@/lib/bus";
 import { classGroups } from "@/lib/classes";
 import { createBusLogin, setBusLoginPassword, setBusLoginActive } from "@/lib/staff.functions";
+import { checkBusHealth } from "@/lib/bus-notify.functions";
 import { AppShell } from "@/components/app-shell";
 import { Field } from "@/components/auth-frame";
 import { Button } from "@/components/ui/button";
@@ -45,9 +58,9 @@ const FleetMap = lazy(() => import("@/components/fleet-map"));
 export const Route = createFileRoute("/_authenticated/fleet")({
   head: () => ({
     meta: [
-      { title: "Fleet — GoGuard" },
+      { title: "Fleet · GoGuard" },
       { name: "description", content: "School buses, crew and live bus tracking." },
-      { property: "og:title", content: "Fleet — GoGuard" },
+      { property: "og:title", content: "Fleet · GoGuard" },
       { property: "og:description", content: "School buses, crew and live bus tracking." },
     ],
   }),
@@ -196,6 +209,17 @@ function FleetPage() {
   const { data: me } = useMe();
   const org = me!.org!;
   const { riders } = useFleetData(org.id);
+  const health = useServerFn(checkBusHealth);
+
+  // A bus that stops reporting, or a device switched off mid-ride, raises one
+  // alert for the office. Checked on open and every five minutes after.
+  useEffect(() => {
+    const run = () => void health({ data: {} }).catch(() => {});
+    run();
+    const timer = setInterval(run, 5 * 60_000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const needsBus = busPupilGroups(riders.data ?? []).needsBus.length;
   const access = accessOf(me);
   if (!access.transport)
@@ -228,6 +252,7 @@ function FleetPage() {
         <TabsList>
           <TabsTrigger value="live">Live</TabsTrigger>
           <TabsTrigger value="buses">Buses</TabsTrigger>
+          <TabsTrigger value="rides">Rides</TabsTrigger>
           <TabsTrigger value="pupils" className="gap-1.5">
             Bus pupils
             {needsBus > 0 && (
@@ -243,11 +268,86 @@ function FleetPage() {
         <TabsContent value="buses" className="mt-5">
           <Buses orgId={org.id} classes={org.classes ?? []} />
         </TabsContent>
+        <TabsContent value="rides" className="mt-5">
+          <RideHistory orgId={org.id} />
+        </TabsContent>
         <TabsContent value="pupils" className="mt-5">
           <BusPupils orgId={org.id} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/* ------------------------------ Ride history ------------------------------ */
+
+/** Past rides for reference: when each bus left, and how many pupils moved. */
+function RideHistory({ orgId }: { orgId: string }) {
+  const { branchId } = useBranch();
+  const rides = useQuery({
+    queryKey: ["fleet", "history", orgId, branchId],
+    queryFn: async () => {
+      const { data: trips, error } = await inBranch(
+        supabase
+          .from("bus_trips")
+          .select("id, bus_id, direction, started_at, ended_at, buses(bus_number)")
+          .eq("org_id", orgId)
+          .eq("status", "completed")
+          .order("started_at", { ascending: false })
+          .limit(40),
+        branchId,
+      );
+      if (error) throw error;
+      const ids = (trips ?? []).map((t) => t.id);
+      if (!ids.length) return [];
+      const { data: logs } = await supabase
+        .from("pupil_bus_logs")
+        .select("trip_id, status")
+        .in("trip_id", ids);
+      return (trips ?? []).map((t) => ({
+        ...t,
+        boarded: (logs ?? []).filter((l) => l.trip_id === t.id && l.status === "boarded").length,
+        dropped: (logs ?? []).filter((l) => l.trip_id === t.id && l.status === "dropped_off")
+          .length,
+      }));
+    },
+  });
+
+  if (rides.isLoading)
+    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
+  if (!rides.data?.length)
+    return (
+      <div className="rounded-3xl border border-dashed p-8 text-center">
+        <Bus className="mx-auto size-8 text-muted-foreground" />
+        <p className="mt-2 font-medium">No finished rides yet</p>
+        <p className="text-sm text-muted-foreground">
+          Every ride a driver ends is kept here for reference.
+        </p>
+      </div>
+    );
+  return (
+    <ul className="space-y-2">
+      {rides.data.map((r) => (
+        <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-2xl border bg-card p-4">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Bus className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Bus {r.buses?.bus_number ?? ""}</p>
+            <p className="text-sm text-muted-foreground">
+              {r.started_at ? format(new Date(r.started_at), "d MMM, h:mm a") : "-"}
+              {r.ended_at && ` to ${format(new Date(r.ended_at), "h:mm a")}`} ·{" "}
+              {r.direction === "to_home" ? "Afternoon drop-off" : "Morning pick-up"}
+            </p>
+          </div>
+          <p className="text-right text-sm text-muted-foreground">
+            {r.boarded} boarded
+            <br />
+            {r.dropped} dropped
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -391,7 +491,7 @@ function LiveTracking({ orgId }: { orgId: string }) {
               </span>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <Stat icon={Gauge} label="km/h" value={kmh(r.trip.current_speed) ?? "—"} />
+              <Stat icon={Gauge} label="km/h" value={kmh(r.trip.current_speed) ?? "-"} />
               <Stat icon={Users} label="Onboard" value={r.progress.onboard} />
               <Stat icon={MapPin} label="Waiting" value={r.progress.waiting} />
             </div>
@@ -599,7 +699,7 @@ function Buses({ orgId, classes }: { orgId: string; classes: string[] }) {
             <Input
               value={form.route_axis}
               onChange={(e) => setForm((f) => ({ ...f, route_axis: e.target.value }))}
-              placeholder="e.g. Lekki – Ajah"
+              placeholder="e.g. Lekki to Ajah"
               maxLength={80}
             />
           </Field>
@@ -700,15 +800,41 @@ function BusCard({
           {multi && !branchId && (
             <p className="text-sm text-muted-foreground">{nameOf(bus.branch_id)}</p>
           )}
+          <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+            <p>
+              Driver: {bus.driver_name || "not set"}
+              {bus.driver_phone ? " · number on file" : " · no number"}
+            </p>
+            <p>
+              Attendant: {bus.attendant_name || "not set"}
+              {bus.attendant_phone ? " · number on file" : " · no number"}
+            </p>
+          </div>
         </div>
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label={`Remove Bus ${bus.bus_number}`}
-          onClick={onDelete}
-        >
-          <Trash2 className="text-destructive" />
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {bus.driver_phone && (
+            <Button asChild size="sm" variant="outline">
+              <a href={`tel:${bus.driver_phone.replace(/[^+0-9]/g, "")}`}>
+                <PhoneCall /> Call driver
+              </a>
+            </Button>
+          )}
+          {bus.attendant_phone && (
+            <Button asChild size="sm" variant="outline">
+              <a href={`tel:${bus.attendant_phone.replace(/[^+0-9]/g, "")}`}>
+                <PhoneCall /> Call attendant
+              </a>
+            </Button>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label={`Remove Bus ${bus.bus_number}`}
+            onClick={onDelete}
+          >
+            <Trash2 className="text-destructive" />
+          </Button>
+        </div>
       </div>
       <form
         className="mt-4 space-y-3"

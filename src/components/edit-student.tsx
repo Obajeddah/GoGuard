@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/hooks/use-me";
 import { useBranch } from "@/hooks/use-branch";
+import { updateMemberDetails } from "@/lib/member.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/auth-frame";
@@ -22,8 +23,6 @@ interface Student {
   full_name: string;
   identifier_code: string | null;
   parent_or_owner_name: string | null;
-  primary_email: string;
-  primary_phone: string | null;
   branch_id: string;
 }
 export function EditStudent({ student }: { student: Student }) {
@@ -33,21 +32,24 @@ export function EditStudent({ student }: { student: Student }) {
   const { data: me } = useMe();
   const { branches } = useBranch();
   const client = useQueryClient();
+  const saveMember = useServerFn(updateMemberDetails);
   const save = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("edit_member", {
-        _member_id: student.id,
-        _pin: pin,
-        _full_name: form.full_name,
-        _class: form.identifier_code ?? "",
-        _parent_name: form.parent_or_owner_name ?? "",
-        _email: form.primary_email,
-        _phone: form.primary_phone ?? "",
-        _branch_id: form.branch_id,
+      // Only names, class and branch change here. The family's email and phone
+      // are kept on the server and passed back untouched, so the school never
+      // sees or handles them.
+      const result = await saveMember({
+        data: {
+          memberId: student.id,
+          pin,
+          fullName: form.full_name,
+          identifierCode: form.identifier_code ?? "",
+          parentName: form.parent_or_owner_name ?? "",
+          branchId: form.branch_id,
+        },
       });
-      if (error) throw new Error(error.message);
-      if (data === "locked") throw new Error("Too many incorrect codes. Try again in 15 minutes.");
-      if (data !== "ok") throw new Error("Incorrect edit code.");
+      if (result === "locked") throw new Error("Too many incorrect codes. Try again in 15 minutes.");
+      if (result !== "ok") throw new Error("Incorrect edit code.");
     },
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["members"] });
@@ -118,21 +120,10 @@ export function EditStudent({ student }: { student: Student }) {
                 onChange={(e) => setForm({ ...form, parent_or_owner_name: e.target.value })}
               />
             </Field>
-            <Field label="Parent email">
-              <Input
-                required
-                type="email"
-                value={form.primary_email}
-                onChange={(e) => setForm({ ...form, primary_email: e.target.value })}
-              />
-            </Field>
-            <Field label="Parent phone">
-              <Input
-                type="tel"
-                value={form.primary_phone ?? ""}
-                onChange={(e) => setForm({ ...form, primary_phone: e.target.value })}
-              />
-            </Field>
+            <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+              The family's email and phone stay private to GoGuard and are not changed here. Ask
+              the parent to update them from their app link if they need to.
+            </p>
             {me?.branchId === null && branches.length > 1 && (
               <Field label="Branch">
                 <select

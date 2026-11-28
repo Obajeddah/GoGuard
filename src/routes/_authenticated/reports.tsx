@@ -29,12 +29,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({
     meta: [
-      { title: "Gate reports — GoGuard" },
+      { title: "Gate reports · GoGuard" },
       {
         name: "description",
         content: "Search and export your full check-in and check-out history.",
       },
-      { property: "og:title", content: "Gate reports — GoGuard" },
+      { property: "og:title", content: "Gate reports · GoGuard" },
       {
         property: "og:description",
         content: "Search and export your full check-in and check-out history.",
@@ -259,8 +259,8 @@ function Reports() {
                       <p className="text-xs text-muted-foreground">{l.member.identifier_code}</p>
                     )}
                   </TableCell>
-                  <TableCell>{l.verified_guardian_name ?? "—"}</TableCell>
-                  <TableCell className="hidden md:table-cell">{l.guard_name ?? "—"}</TableCell>
+                  <TableCell>{l.verified_guardian_name ?? "-"}</TableCell>
+                  <TableCell className="hidden md:table-cell">{l.guard_name ?? "-"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

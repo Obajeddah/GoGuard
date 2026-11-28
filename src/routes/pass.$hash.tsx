@@ -18,7 +18,7 @@ export const Route = createFileRoute("/pass/$hash")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: loaderData ? `${loaderData.pass.name} — GoGuard` : "Gate pass — GoGuard" },
+      { title: loaderData ? `${loaderData.pass.name} · GoGuard` : "Gate pass · GoGuard" },
       {
         name: "description",
         content: "Your personal gate pass. Show this QR code to the guard at the gate.",

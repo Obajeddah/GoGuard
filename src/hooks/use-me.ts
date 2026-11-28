@@ -2,6 +2,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { billingState } from "@/lib/billing";
+import { getOrgEmergencyLine } from "@/lib/org-contact.functions";
 import type { OrgType } from "@/lib/org-terms";
 
 export interface Branch {
@@ -47,7 +48,7 @@ export const meQueryOptions = queryOptions({
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return null;
-    const [{ data: profile }, { data: roles }, { data: branches }, { data: request }] =
+    const [{ data: profile }, { data: roles }, { data: branches }, { data: request }, line] =
       await Promise.all([
         supabase
           .from("profiles")
@@ -67,12 +68,16 @@ export const meQueryOptions = queryOptions({
           .select("full_name, status")
           .eq("user_id", user.id)
           .maybeSingle(),
+        // The emergency line is decrypted server-side, for this school only.
+        getOrgEmergencyLine().catch(() => null),
       ]);
+    const org = (profile?.organization as Me["org"]) ?? null;
+    if (org) org.emergency_phone = line;
     return {
       userId: user.id,
       email: user.email ?? "",
       fullName: profile?.full_name ?? "",
-      org: (profile?.organization as Me["org"]) ?? null,
+      org,
       branchId: profile?.branch_id ?? null,
       branches: (branches ?? []) as Branch[],
       isAdmin: !!roles?.some((r) => r.role === "admin"),

@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { startOfDay } from "date-fns";
-import { Copy, Link2, PhoneCall, RefreshCw, ScanLine, Share2, Users } from "lucide-react";
+import { formatDistanceToNow, startOfDay } from "date-fns";
+import { Bus, Copy, Link2, PhoneCall, RefreshCw, ScanLine, Share2, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { useServerFn } from "@tanstack/react-start";
+
 import { supabase } from "@/integrations/supabase/client";
+import { drainParentEmails } from "@/lib/email-retry.functions";
+import { runPickupWatchNow } from "@/lib/pickup-watch.functions";
 import { useMe } from "@/hooks/use-me";
 import { useBranch, inBranch } from "@/hooks/use-branch";
 import { readAll } from "@/lib/pagination";
 import { termsFor } from "@/lib/org-terms";
 import { can } from "@/lib/access";
+import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app-shell";
 import { LogRow, type GateLogRow } from "@/components/log-row";
 import { Button } from "@/components/ui/button";
@@ -29,12 +34,12 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Live gate activity — GoGuard" },
+      { title: "Live gate activity · GoGuard" },
       {
         name: "description",
         content: "Every check-in and check-out at your gate today, as it happens.",
       },
-      { property: "og:title", content: "Live gate activity — GoGuard" },
+      { property: "og:title", content: "Live gate activity · GoGuard" },
       {
         property: "og:description",
         content: "Every check-in and check-out at your gate today, as it happens.",
@@ -58,6 +63,16 @@ function Dashboard() {
   const registrationBranch =
     branch.branch ?? branch.branches.find((b) => b.is_main) ?? branch.branches[0];
   const [since] = useState(() => startOfDay(new Date()).toISOString());
+  const drain = useServerFn(drainParentEmails);
+  const pickup = useServerFn(runPickupWatchNow);
+
+  // The office opening the dashboard also retries any parent email that failed
+  // earlier and runs the pick-up watch, so nothing waits for a scheduler.
+  useEffect(() => {
+    void drain({ data: { limit: 10 } }).catch(() => {});
+    void pickup({ data: {} }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const logsQuery = useQuery({
     queryKey: ["gate-logs", "today", org.id, branch.branchId, since],
@@ -76,6 +91,25 @@ function Dashboard() {
           branch.branchId,
         ).range(from, to),
       );
+    },
+  });
+
+  // Bus boardings, drop-offs and driver alerts join the same live feed.
+  const busQuery = useQuery({
+    queryKey: ["bus-notices", "today", org.id, branch.branchId, since],
+    queryFn: async () => {
+      const { data, error } = await inBranch(
+        supabase
+          .from("transport_notices")
+          .select("id, kind, message, created_at")
+          .gte("created_at", since)
+          .eq("org_id", org.id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        branch.branchId,
+      );
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
@@ -108,6 +142,9 @@ function Dashboard() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gate_logs" }, () => {
         queryClient.invalidateQueries({ queryKey: ["gate-logs"] });
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transport_notices" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["bus-notices"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -115,6 +152,7 @@ function Dashboard() {
   }, [queryClient]);
 
   const logs = logsQuery.data ?? [];
+  const busNotices = busQuery.data ?? [];
   const stats = useMemo(() => {
     const latest = new Map<string, string>();
     for (const l of [...logs].reverse()) latest.set(l.member_id, l.action_type);
@@ -177,19 +215,52 @@ function Dashboard() {
           </div>
           {logsQuery.isLoading ? (
             <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
-          ) : logs.length === 0 ? (
+          ) : logs.length === 0 && busNotices.length === 0 ? (
             <div className="py-12 text-center">
               <p className="font-medium">No activity yet today</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Each scan will appear here the moment it happens.
+                Every gate scan and bus boarding appears here the moment it happens.
               </p>
             </div>
           ) : (
-            <ul className="mt-2 divide-y">
-              {logs.slice(0, 50).map((l) => (
-                <LogRow key={l.id} log={l as GateLogRow} terms={terms} />
-              ))}
-            </ul>
+            <>
+              {busNotices.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Bus
+                  </p>
+                  <ul className="mt-1 divide-y">
+                    {busNotices.slice(0, 20).map((n) => (
+                      <li key={n.id} className="flex items-start gap-3 py-2.5">
+                        <span
+                          className={cn(
+                            "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
+                            n.kind.startsWith("driver_")
+                              ? "bg-destructive text-destructive-foreground"
+                              : "bg-primary/10 text-primary",
+                          )}
+                        >
+                          <Bus className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm">{n.message}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {logs.length > 0 && (
+                <ul className="mt-2 divide-y">
+                  {logs.slice(0, 50).map((l) => (
+                    <LogRow key={l.id} log={l as GateLogRow} terms={terms} />
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </section>
 
@@ -207,13 +278,13 @@ function Dashboard() {
             <div className="mt-3 grid grid-cols-2 gap-3 text-center">
               <div className="rounded-2xl bg-muted p-4">
                 <p className="font-display text-3xl font-bold">
-                  {countsQuery.data?.members ?? "–"}
+                  {countsQuery.data?.members ?? "-"}
                 </p>
                 <p className="text-xs text-muted-foreground">{terms.members}</p>
               </div>
               <div className="rounded-2xl bg-muted p-4">
                 <p className="font-display text-3xl font-bold">
-                  {countsQuery.data?.guardians ?? "–"}
+                  {countsQuery.data?.guardians ?? "-"}
                 </p>
                 <p className="text-xs text-muted-foreground">{terms.guardians}</p>
               </div>
@@ -286,8 +357,8 @@ function RegistrationLinkCard({
         <h2 className="text-lg font-bold">Registration link</h2>
       </div>
       <p className="mt-1 text-sm text-ink-muted">
-        Share this one link with every {ownerLabel}. They register up to four trusted guardians — no
-        app or account needed — and each registration appears here automatically.
+        Share this one link with every {ownerLabel}. They register up to four trusted guardians, no
+        app or account needed, and each registration appears here automatically.
       </p>
       <div className="mt-4 break-all rounded-xl bg-ink-foreground/10 px-3 py-2.5 font-mono text-xs">
         {link}

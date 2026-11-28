@@ -29,13 +29,13 @@ const heroImg = "/hero-gate.svg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "GoGuard — Safe school drop-off and pick-up" },
+      { title: "GoGuard · Safe school drop-off and pick-up" },
       {
         name: "description",
         content:
           "Verified guardians, QR gate passes and instant email alerts for school drop-off and pick-up.",
       },
-      { property: "og:title", content: "GoGuard — Safe school drop-off and pick-up" },
+      { property: "og:title", content: "GoGuard · Safe school drop-off and pick-up" },
       {
         property: "og:description",
         content: "Verified guardians, QR gate passes and instant email alerts for schools.",
@@ -143,7 +143,7 @@ function Landing() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4">
         <section className="grid items-center gap-12 pb-16 pt-12 md:grid-cols-[1fr_1.05fr] md:pt-20">
           <div>
-            <h1 className="sr-only">GoGuard — safe school drop-off and pick-up</h1>
+            <h1 className="sr-only">GoGuard · safe school drop-off and pick-up</h1>
             <ul className="grid max-w-xs gap-2">
               {POINTS.map((label) => (
                 <li key={label} className="glass flex items-center gap-3 rounded-xl px-3.5 py-2.5">

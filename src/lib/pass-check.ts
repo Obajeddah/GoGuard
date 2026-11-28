@@ -17,7 +17,13 @@ export function checkPass(
   record: PassRecord | null,
   expected: { orgId: string; memberIds?: string[] },
 ): PassCheck {
-  if (!scannedHash || !record || record.unique_qr_hash !== scannedHash)
+  // Compare without case: a printed or emailed code may be upper-case while the
+  // scanner always reports lower-case. Both name the same pass.
+  if (
+    !scannedHash ||
+    !record ||
+    record.unique_qr_hash.trim().toLowerCase() !== scannedHash.trim().toLowerCase()
+  )
     return { ok: false, reason: "unknown" };
   if (record.org_id !== expected.orgId) return { ok: false, reason: "other_school" };
   if (expected.memberIds && !expected.memberIds.includes(record.member_id))

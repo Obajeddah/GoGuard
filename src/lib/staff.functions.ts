@@ -207,12 +207,15 @@ export const decideGuardRequest = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// Guard invite link (public): /onboard/guard?org=…&branch=…&code=…
+// Staff invite link (public): /onboard/guard?org=…&branch=…&code=…&role=admin
+// The same link token, but a branch administrator is created with admin access
+// instead of being sent through guard approval.
 // ---------------------------------------------------------------------------
 const inviteSchema = z.object({
   org: z.string().uuid(),
   branch: z.string().uuid(),
   code: z.string().regex(/^[a-f0-9]{64}$/i),
+  role: z.enum(["guard", "admin"]).optional().default("guard"),
 });
 
 async function inviteBranch(sb: Admin, i: z.infer<typeof inviteSchema>) {
@@ -236,7 +239,11 @@ export const getGuardInvite = createServerFn({ method: "GET" })
       .from("branches")
       .select("id", { count: "exact", head: true })
       .eq("org_id", b.org_id);
-    return { orgName: b.organization?.name ?? "", branchName: (count ?? 1) > 1 ? b.name : null };
+    return {
+      orgName: b.organization?.name ?? "",
+      branchName: (count ?? 1) > 1 ? b.name : null,
+      role: data.role,
+    };
   });
 
 export const submitGuardInvite = createServerFn({ method: "POST" })
@@ -254,6 +261,36 @@ export const submitGuardInvite = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const b = await inviteBranch(supabaseAdmin, data);
     if (!b) throw new Error("This invite link is no longer active. Ask the school for a new one.");
+
+    // Administrator invite: the link is only shared by headquarters, so the
+    // account is created with admin access straight away, no guard approval.
+    if (data.role === "admin") {
+      const { data: org } = await supabaseAdmin
+        .from("organizations")
+        .select("plan, trial_ends_at, paid_until")
+        .eq("id", b.org_id)
+        .maybeSingle();
+      const { billingState } = await import("@/lib/billing");
+      if (!org || !billingState(org).multiBranch)
+        throw new Error(
+          "Administrator invites need the Multi-Campus Group plan. Ask the school office.",
+        );
+      const adminUid = await createAccount(supabaseAdmin, data);
+      await addStaff(
+        supabaseAdmin,
+        adminUid,
+        {
+          org_id: b.org_id,
+          branch_id: b.id,
+          full_name: data.full_name,
+          email: data.email.toLowerCase(),
+          phone: data.phone,
+        },
+        "admin",
+      );
+      return { ok: true, admin: true };
+    }
+
     const uid = await createAccount(supabaseAdmin, data);
     const { error } = await supabaseAdmin.from("staff_requests").insert({
       org_id: b.org_id,

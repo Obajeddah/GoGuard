@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * GatePass design system — "Gatehouse"
+ * GatePass design system: "Gatehouse"
  * Warm sandstone paper, deep gate-green ink, signal amber for attention,
  * clear green/coral for check-in / check-out. All colors are oklch tokens.
  */

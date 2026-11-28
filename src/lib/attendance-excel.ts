@@ -48,7 +48,7 @@ export function attendanceSheets(input: {
     sheet: "Summary",
     columns: [{ width: 28 }, { width: 12 }, { width: 14 }, { width: 16 }],
     data: [
-      [{ value: `${orgName} — attendance`, fontWeight: "bold", fontSize: 14 }],
+      [{ value: `${orgName} attendance`, fontWeight: "bold", fontSize: 14 }],
       [`${from} to ${to} · ${days.length} school days`],
       ["P = present (gate) · B = present (school bus) · A = absent"],
       [],
@@ -62,7 +62,7 @@ export function attendanceSheets(input: {
         labels[i],
         c.students.length,
         c.students.reduce((n, s) => n + s.present, 0),
-        c.rate === null ? "—" : c.rate,
+        c.rate === null ? "-" : c.rate,
       ]),
     ],
   };
@@ -98,7 +98,7 @@ export function attendanceSheets(input: {
             s.present,
             s.byBus,
             s.absent,
-            s.rate === null ? "—" : s.rate,
+            s.rate === null ? "-" : s.rate,
           ])
         : [["No students registered in this class yet."]]),
     ],

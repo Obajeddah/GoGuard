@@ -11,21 +11,21 @@ import {
 const m = (
   id: string,
   full_name: string,
-  primary_email: string,
+  parent_or_owner_name: string | null,
   identifier_code: string | null = null,
 ) => ({
   id,
   full_name,
-  primary_email,
+  parent_or_owner_name,
   identifier_code,
 });
 
 describe("Possible duplicate students", () => {
   it("flags the same child name registered twice", () => {
     const d = findDuplicates([
-      m("1", "Ada Obi", "a@x.com"),
-      m("2", "Ada Obi", "a@x.com"),
-      m("3", "Tobi Ade", "t@x.com"),
+      m("1", "Ada Obi", "Ngozi Obi"),
+      m("2", "Ada Obi", "Ngozi Obi"),
+      m("3", "Tobi Ade", "Tunde Ade"),
     ]);
     expect(d.get("1")?.others).toEqual(["2"]);
     expect(d.get("2")?.others).toEqual(["1"]);
@@ -34,12 +34,12 @@ describe("Possible duplicate students", () => {
   it("ignores case, extra spaces and word order", () => {
     expect(nameKey("  ada   OBI ")).toBe(nameKey("Obi Ada"));
   });
-  it("marks duplicates registered by different parents", () => {
-    const d = findDuplicates([m("1", "Ada Obi", "mum@x.com"), m("2", "Ada Obi", "stranger@y.com")]);
+  it("marks duplicates registered under different parents", () => {
+    const d = findDuplicates([m("1", "Ada Obi", "Ngozi Obi"), m("2", "Ada Obi", "Mary Ade")]);
     expect(d.get("1")?.differentParents).toBe(true);
   });
   it("does not mark same-parent duplicates as from different parents", () => {
-    const d = findDuplicates([m("1", "Ada Obi", "Mum@x.com"), m("2", "Ada Obi", "mum@x.com")]);
+    const d = findDuplicates([m("1", "Ada Obi", "Ngozi Obi"), m("2", "Ada Obi", "ngozi obi")]);
     expect(d.get("1")?.differentParents).toBe(false);
   });
 });

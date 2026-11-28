@@ -11,9 +11,9 @@ import { AuthFrame, Field } from "@/components/auth-frame";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "Set a new password — GoGuard" },
+      { title: "Set a new password · GoGuard" },
       { name: "description", content: "Choose a new password for your GoGuard account." },
-      { property: "og:title", content: "Set a new password — GoGuard" },
+      { property: "og:title", content: "Set a new password · GoGuard" },
       { property: "og:description", content: "Choose a new password for your GoGuard account." },
       { name: "robots", content: "noindex" },
     ],

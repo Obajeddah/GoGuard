@@ -5,9 +5,9 @@ import { GateScanner } from "@/components/gate-scanner";
 export const Route = createFileRoute("/_authenticated/scanner")({
   head: () => ({
     meta: [
-      { title: "Gate scanner — GoGuard" },
+      { title: "Gate scanner · GoGuard" },
       { name: "description", content: "Scan and verify guardian QR passes at the school gate." },
-      { property: "og:title", content: "Gate scanner — GoGuard" },
+      { property: "og:title", content: "Gate scanner · GoGuard" },
       {
         property: "og:description",
         content: "Scan and verify guardian QR passes at the school gate.",

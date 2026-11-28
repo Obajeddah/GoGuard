@@ -4,13 +4,19 @@ export async function resizeImageToDataUrl(
   maxSize = 512,
   quality = 0.82,
 ): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  if (!file.type.startsWith("image/"))
+    throw new Error("Please choose a picture (JPG, PNG or WebP).");
+  if (/hei[cf]/i.test(file.type) || /\.(hei[cf])$/i.test(file.name))
+    throw new Error(
+      "This phone's photo format can't be read here. Set your camera to \"Most Compatible\" or take a screenshot of the picture and upload that.",
+    );
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const el = new Image();
       el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error("Could not read that image."));
+      el.onerror = () =>
+        reject(new Error("That picture couldn't be opened. Please try a JPG or PNG photo."));
       el.src = url;
     });
     const scale = Math.min(1, maxSize / Math.max(img.width, img.height));

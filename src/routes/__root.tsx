@@ -108,12 +108,26 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  head: ({ matches }) => {
+    // The parent app gets its own manifest, and a family link gets its own copy
+    // whose start page carries the link. Phones read only the first manifest on
+    // the page, so it must be chosen here rather than added per route.
+    const parentMatch = [...matches]
+      .reverse()
+      .find((m) => typeof m.routeId === "string" && m.routeId.startsWith("/parent"));
+    const parentToken = (parentMatch?.params as { token?: string } | undefined)?.token;
+    const manifestHref = parentToken
+      ? `/api/parent-manifest/${parentToken}`
+      : parentMatch
+        ? "/parent-manifest.json"
+        : "/manifest.webmanifest";
+
+    return {
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#1d3a30" },
-      { title: "GoGuard — Safe school drop-off and pick-up" },
+      { title: "GoGuard · Safe school drop-off and pick-up" },
       {
         name: "description",
         content: "Verified guardians and QR gate passes for safe school drop-off and pick-up.",
@@ -133,8 +147,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      { rel: "manifest", href: manifestHref },
     ],
-  }),
+    };
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,

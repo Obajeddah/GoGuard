@@ -53,5 +53,15 @@ export const recordGateAction = createServerFn({ method: "POST" })
     }
     if (error || !log) throw new Error("Could not record this gate action. Please try again.");
 
+    // Parents are told the moment the scan happens. The scan itself has already
+    // been saved, so a mail problem never blocks the gate.
+    try {
+      const { sendGateEmailNow } = await import("@/lib/instant-email.server");
+      await sendGateEmailNow(log.id, process.env["URL"] ?? "https://goguard.ng");
+    } catch (mailError) {
+      const { redactValue } = await import("@/lib/redact");
+      console.error("[gate] instant email failed", redactValue(mailError));
+    }
+
     return log;
   });

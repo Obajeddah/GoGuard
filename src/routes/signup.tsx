@@ -20,12 +20,12 @@ export const Route = createFileRoute("/signup")({
   validateSearch: z.object({ plan: z.string().optional().catch(undefined) }),
   head: () => ({
     meta: [
-      { title: "Register your school — GoGuard" },
+      { title: "Register your school · GoGuard" },
       {
         name: "description",
         content: "Set up GoGuard for your school in a few minutes.",
       },
-      { property: "og:title", content: "Register your school — GoGuard" },
+      { property: "og:title", content: "Register your school · GoGuard" },
       {
         property: "og:description",
         content: "Set up GoGuard for your school in a few minutes.",
@@ -37,12 +37,6 @@ export const Route = createFileRoute("/signup")({
 
 const schema = z.object({
   orgName: z.string().trim().min(2, "Enter your school's name").max(120),
-  emergencyPhone: z
-    .string()
-    .trim()
-    .min(7, "Enter a phone number parents can call")
-    .max(30)
-    .regex(/^[+0-9 ()-]+$/, "Use digits, spaces and + only"),
   fullName: z.string().trim().min(2, "Enter your full name").max(120),
   email: z.string().trim().email("Enter a valid email address").max(255),
   password: z.string().min(8, "Use at least 8 characters").max(72),
@@ -62,7 +56,6 @@ function SignupPage() {
   const type = TYPE;
   const [form, setForm] = useState({
     orgName: "",
-    emergencyPhone: "",
     fullName: "",
     email: "",
     password: "",
@@ -102,7 +95,9 @@ function SignupPage() {
             org_name: parsed.data.orgName,
             org_type: type,
             full_name: parsed.data.fullName,
-            emergency_phone: parsed.data.emergencyPhone,
+            // The emergency line is added after sign-in, from Settings, where
+            // it is encrypted. Sending it here would write it in plain text
+            // through the signup trigger.
             ...signupMetadata(res.ticket, plan),
           },
         },
@@ -188,19 +183,10 @@ function SignupPage() {
               placeholder="Greenfield Academy"
             />
           </Field>
-          <Field
-            label="Emergency line"
-            hint={`Shown in every gate email, so ${terms.owner.toLowerCase()}s can call you about anything unexpected.`}
-            error={errors["emergencyPhone"]}
-          >
-            <Input
-              type="tel"
-              value={form.emergencyPhone}
-              onChange={set("emergencyPhone")}
-              placeholder="+234 801 234 5678"
-              autoComplete="tel"
-            />
-          </Field>
+          <p className="rounded-xl border bg-muted/40 p-3 text-sm text-muted-foreground">
+            You can add the emergency line parents should call right after your first sign-in, from
+            Settings. It is stored encrypted and never written in plain text.
+          </p>
         </div>
 
         <div className="space-y-4 border-t pt-5">

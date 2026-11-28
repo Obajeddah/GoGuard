@@ -5,6 +5,7 @@
  * Pure function so the email sender and the Fleet preview share it (tested).
  */
 import { busTrackPath } from "./bus";
+import { EMAIL, emailFooter, emailLayout, escapeHtml } from "./email-template";
 
 export type RideNoticeKind = "pupil_boarded" | "pupil_dropped_off";
 
@@ -48,4 +49,30 @@ export function rideEmail(input: {
     message: input.message,
     links,
   };
+}
+
+/** The same ride notice, dressed in the GoGuard email template. */
+export function rideEmailHtml(
+  content: RideEmail,
+  input: { orgName: string; siteUrl: string },
+): string {
+  const links = content.links
+    .map(
+      (link) => `<p style="margin:0 0 12px;text-align:center;"><a href="${escapeHtml(
+        link.href,
+      )}" style="font:700 14px/20px ${EMAIL.font};color:${EMAIL.ink};text-decoration:underline;">${escapeHtml(
+        link.label,
+      )}</a></p>`,
+    )
+    .join("");
+  return emailLayout({
+    orgName: input.orgName,
+    label: "School bus",
+    preheader: content.message,
+    heading: content.subject,
+    intro: content.message,
+    body: `<div style="margin:6px 0 2px;">${links}</div>`,
+    footerNote: emailFooter(input.orgName),
+    siteUrl: input.siteUrl,
+  });
 }

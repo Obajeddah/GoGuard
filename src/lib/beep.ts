@@ -28,8 +28,23 @@ export function beep(kind: "scan" | "success" | "error") {
   }
 }
 
-/** Pull the 64-char pass code out of a scanned value (raw code or pass URL). */
+/**
+ * Pull the 64-char pass code out of anything a camera or a photo can give us:
+ * the raw code, a /pass/<code> link, or a QR that wrapped the link in text.
+ * Always lower-case, which is the form the database and our barcodes use.
+ */
 export function extractPassHash(value: string): string | null {
-  const match = value.trim().match(/[a-f0-9]{64}/i);
-  return match ? match[0].toLowerCase() : null;
+  const text = value.trim();
+  const direct = text.match(/[a-f0-9]{64}/i);
+  if (direct) return direct[0].toLowerCase();
+  // Some scanners report a URL-encoded or quoted payload; try one more pass.
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(text);
+    } catch {
+      return text;
+    }
+  })();
+  const second = decoded.match(/[a-f0-9]{64}/i);
+  return second ? second[0].toLowerCase() : null;
 }

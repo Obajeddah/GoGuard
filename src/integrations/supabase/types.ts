@@ -516,7 +516,9 @@ export type Database = {
         Row: {
           branch_id: string | null;
           created_at: string;
-          email: string;
+          email: string | null;
+          email_enc: string | null;
+          email_hash: string | null;
           id: string;
           member_id: string;
           name: string;
@@ -530,7 +532,9 @@ export type Database = {
         Insert: {
           branch_id?: string | null;
           created_at?: string;
-          email: string;
+          email?: string | null;
+          email_enc?: string | null;
+          email_hash?: string | null;
           id?: string;
           member_id: string;
           name: string;
@@ -544,7 +548,9 @@ export type Database = {
         Update: {
           branch_id?: string | null;
           created_at?: string;
-          email?: string;
+          email?: string | null;
+          email_enc?: string | null;
+          email_hash?: string | null;
           id?: string;
           member_id?: string;
           name?: string;
@@ -592,10 +598,13 @@ export type Database = {
           parent_or_owner_name: string | null;
           parent_app_installed: boolean;
           parent_app_installed_at: string | null;
+          parent_email_hash: string | null;
           parent_link_token: string;
           photo_path: string | null;
-          primary_email: string;
+          primary_email: string | null;
+          primary_email_enc: string | null;
           primary_phone: string | null;
+          primary_phone_enc: string | null;
           uses_bus: boolean;
         };
         Insert: {
@@ -610,10 +619,13 @@ export type Database = {
           parent_or_owner_name?: string | null;
           parent_app_installed?: boolean;
           parent_app_installed_at?: string | null;
+          parent_email_hash?: string | null;
           parent_link_token?: string;
           photo_path?: string | null;
-          primary_email: string;
+          primary_email?: string | null;
+          primary_email_enc?: string | null;
           primary_phone?: string | null;
+          primary_phone_enc?: string | null;
           uses_bus?: boolean;
         };
         Update: {
@@ -628,10 +640,13 @@ export type Database = {
           parent_or_owner_name?: string | null;
           parent_app_installed?: boolean;
           parent_app_installed_at?: string | null;
+          parent_email_hash?: string | null;
           parent_link_token?: string;
           photo_path?: string | null;
-          primary_email?: string;
+          primary_email?: string | null;
+          primary_email_enc?: string | null;
           primary_phone?: string | null;
+          primary_phone_enc?: string | null;
           uses_bus?: boolean;
         };
         Relationships: [
@@ -828,6 +843,7 @@ export type Database = {
           created_at: string;
           email_domain: string | null;
           emergency_phone: string | null;
+          emergency_phone_enc: string | null;
           id: string;
           name: string;
           paid_until: string | null;
@@ -844,6 +860,7 @@ export type Database = {
           created_at?: string;
           email_domain?: string | null;
           emergency_phone?: string | null;
+          emergency_phone_enc?: string | null;
           id?: string;
           name: string;
           paid_until?: string | null;
@@ -860,6 +877,7 @@ export type Database = {
           created_at?: string;
           email_domain?: string | null;
           emergency_phone?: string | null;
+          emergency_phone_enc?: string | null;
           id?: string;
           name?: string;
           paid_until?: string | null;
@@ -1271,11 +1289,12 @@ export type Database = {
         Args: {
           _branch_id: string;
           _class: string;
-          _email: string;
+          _email_enc: string | null;
+          _email_hash: string | null;
           _full_name: string;
           _member_id: string;
           _parent_name: string;
-          _phone: string;
+          _phone_enc: string | null;
           _pin: string;
         };
         Returns: string;
@@ -1288,6 +1307,7 @@ export type Database = {
           branch_name: string;
           classes: string[];
           emergency_phone: string;
+          emergency_phone_enc: string | null;
           org_id: string;
           org_name: string;
           org_type: Database["public"]["Enums"]["org_type"];

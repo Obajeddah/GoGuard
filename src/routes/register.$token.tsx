@@ -16,7 +16,11 @@ import {
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { getRegistrationOrg, submitRegistration } from "@/lib/registration.functions";
+import {
+  getRegistrationOrg,
+  MAX_CHILDREN_PER_REGISTRATION,
+  submitRegistration,
+} from "@/lib/registration.functions";
 import { MAX_GUARDIANS, termsFor } from "@/lib/org-terms";
 import { Field } from "@/components/auth-frame";
 import { GateMark } from "@/components/brand";
@@ -39,12 +43,12 @@ export const Route = createFileRoute("/register/$token")({
     const name = loaderData?.org.name ?? "GoGuard";
     return {
       meta: [
-        { title: `Guardian registration — ${name}` },
+        { title: `Guardian registration · ${name}` },
         {
           name: "description",
           content: `Register the people allowed to drop off and pick up your child at ${name}.`,
         },
-        { property: "og:title", content: `Guardian registration — ${name}` },
+        { property: "og:title", content: `Guardian registration · ${name}` },
         {
           property: "og:description",
           content: `Register the people allowed to drop off and pick up your child at ${name}.`,
@@ -84,6 +88,20 @@ const newGuardian = (n: number): GuardianDraft => ({
   receive_general_notifications: false,
 });
 
+interface ChildDraft {
+  key: string;
+  full_name: string;
+  identifier_code: string;
+  photo: string | null;
+}
+
+const newChild = (n: number): ChildDraft => ({
+  key: `c${n}-${Date.now()}`,
+  full_name: "",
+  identifier_code: "",
+  photo: null,
+});
+
 const emailOk = (v: string) => z.string().email().safeParse(v.trim()).success;
 
 type Result = Awaited<ReturnType<typeof submitRegistration>>;
@@ -94,12 +112,8 @@ function RegisterPage() {
   const terms = termsFor(org.type);
   const submit = useServerFn(submitRegistration);
 
-  const [member, setMember] = useState({
-    full_name: "",
-    identifier_code: "",
-    photo: null as string | null,
-    uses_bus: false,
-  });
+  const [members, setMembers] = useState<ChildDraft[]>(() => [newChild(0)]);
+  const [usesBus, setUsesBus] = useState(false);
   const [parent, setParent] = useState({ name: "", email: "", phone: "" });
   const [guardians, setGuardians] = useState<GuardianDraft[]>(() => [newGuardian(0)]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -110,14 +124,22 @@ function RegisterPage() {
   const updateG = (key: string, patch: Partial<GuardianDraft>) =>
     setGuardians((gs) => gs.map((g) => (g.key === key ? { ...g, ...patch } : g)));
 
+  const updateC = (key: string, patch: Partial<ChildDraft>) =>
+    setMembers((cs) => cs.map((c) => (c.key === key ? { ...c, ...patch } : c)));
+
   function validate() {
     const e: Record<string, string> = {};
-    if (!member.full_name.trim())
-      e["member_name"] =
-        `Enter your ${org.type === "school" ? "child" : terms.member.toLowerCase()}'s full name`;
-    if (org.classes.length && !member.identifier_code)
-      e["member_class"] =
-        `Choose your ${org.type === "school" ? "child" : terms.member.toLowerCase()}'s ${terms.identifier.toLowerCase()}`;
+    members.forEach((c, i) => {
+      if (!c.full_name.trim())
+        e[`m${i}_name`] =
+          `Enter your ${org.type === "school" ? "child" : terms.member.toLowerCase()}'s full name`;
+      if (org.classes.length && !c.identifier_code)
+        e[`m${i}_class`] =
+          `Choose ${terms.identifier.toLowerCase()} for this ${org.type === "school" ? "child" : terms.member.toLowerCase()}`;
+      if (!c.photo)
+        e[`m${i}_photo`] =
+          "Add a clear photo of their face. The gate checks the picture before they are picked up.";
+    });
     if (!parent.name.trim()) e["parent_name"] = "Enter your full name";
     if (!emailOk(parent.email)) e["parent_email"] = "Enter a valid email address";
     guardians.forEach((g, i) => {
@@ -145,12 +167,12 @@ function RegisterPage() {
           token,
           website: honeypot,
           siteUrl: window.location.origin,
-          member: {
-            full_name: member.full_name,
-            identifier_code: member.identifier_code,
-            photo: member.photo ?? undefined,
-            uses_bus: org.transport && member.uses_bus,
-          },
+          members: members.map((c) => ({
+            full_name: c.full_name,
+            identifier_code: c.identifier_code,
+            photo: c.photo!,
+          })),
+          uses_bus: org.transport && usesBus,
           parent,
           guardians: guardians.map((g) => ({
             name: g.name,
@@ -174,7 +196,11 @@ function RegisterPage() {
 
   if (result)
     return (
-      <Success result={result} parentEmail={parent.email} photos={guardians.map((g) => g.photo)} />
+      <Success
+        result={result}
+        parentEmail={parent.email}
+        photos={members.map(() => guardians.map((g) => g.photo))}
+      />
     );
 
   return (
@@ -212,51 +238,102 @@ function RegisterPage() {
           aria-hidden
         />
 
-        <Section step="1" title={org.type === "school" ? "Your child" : `${terms.member} details`}>
-          <div className="flex gap-4">
-            <PhotoPicker
-              value={member.photo}
-              onChange={(photo) => setMember((m) => ({ ...m, photo }))}
-              label="Photo (optional)"
-            />
-            <div className="flex-1 space-y-3">
-              <Field label="Full name" error={errors["member_name"]}>
-                <Input
-                  value={member.full_name}
-                  onChange={(e) => setMember((m) => ({ ...m, full_name: e.target.value }))}
-                />
-              </Field>
-              <Field label={terms.identifier} error={errors["member_class"]}>
-                {org.classes.length ? (
-                  <ClassSelect
-                    classes={org.classes}
-                    value={member.identifier_code}
-                    onChange={(identifier_code) => setMember((m) => ({ ...m, identifier_code }))}
-                    placeholder={`Choose ${terms.identifier.toLowerCase()}`}
-                  />
-                ) : (
-                  <Input
-                    value={member.identifier_code}
-                    onChange={(e) => setMember((m) => ({ ...m, identifier_code: e.target.value }))}
-                    placeholder={terms.identifierPlaceholder}
-                  />
-                )}
-              </Field>
-            </div>
+        <Section
+          step="1"
+          title={org.type === "school" ? "Your children" : `${terms.member} details`}
+          {...(members.length > 1 ? { aside: `${members.length} children` } : {})}
+        >
+          <p className="mb-4 text-sm text-muted-foreground">
+            Add two or three children here only if the same people collect them and they ride the
+            same school bus. If a child has a different {terms.guardian.toLowerCase()} or a
+            different bus, register them separately with a new form.
+          </p>
+          <div className="space-y-4">
+            {members.map((c, i) => (
+              <div key={c.key} className="rounded-2xl border bg-background p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="font-display font-semibold">
+                    {org.type === "school" ? "Child" : terms.member} {i + 1}
+                  </p>
+                  {members.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMembers((cs) => cs.filter((x) => x.key !== c.key))}
+                    >
+                      <Trash2 /> Remove
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-4">
+                  <div className="shrink-0">
+                    <PhotoPicker
+                      value={c.photo}
+                      onChange={(photo) => updateC(c.key, { photo })}
+                      label="Face photo"
+                      required
+                    />
+                    {errors[`m${i}_photo`] ? (
+                      <p className="mt-1 w-24 text-center text-[11px] text-destructive">
+                        {errors[`m${i}_photo`]}
+                      </p>
+                    ) : (
+                      <p className="mt-1 w-24 text-center text-[11px] text-muted-foreground">
+                        Picture needed
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <Field label="Full name" error={errors[`m${i}_name`]}>
+                      <Input
+                        value={c.full_name}
+                        onChange={(e) => updateC(c.key, { full_name: e.target.value })}
+                      />
+                    </Field>
+                    <Field label={terms.identifier} error={errors[`m${i}_class`]}>
+                      {org.classes.length ? (
+                        <ClassSelect
+                          classes={org.classes}
+                          value={c.identifier_code}
+                          onChange={(identifier_code) => updateC(c.key, { identifier_code })}
+                          placeholder={`Choose ${terms.identifier.toLowerCase()}`}
+                        />
+                      ) : (
+                        <Input
+                          value={c.identifier_code}
+                          onChange={(e) => updateC(c.key, { identifier_code: e.target.value })}
+                          placeholder={terms.identifierPlaceholder}
+                        />
+                      )}
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {members.length < MAX_CHILDREN_PER_REGISTRATION && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-dashed"
+                onClick={() => setMembers((cs) => [...cs, newChild(cs.length)])}
+              >
+                <Plus /> Add another child
+              </Button>
+            )}
           </div>
           {org.transport && (
             <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-muted p-3">
-              <Switch
-                checked={member.uses_bus}
-                onCheckedChange={(uses_bus) => setMember((m) => ({ ...m, uses_bus }))}
-                className="mt-0.5"
-              />
+              <Switch checked={usesBus} onCheckedChange={setUsesBus} className="mt-0.5" />
               <span className="text-sm">
                 <span className="flex items-center gap-1.5 font-medium">
-                  <Bus className="size-4" /> My child takes the school bus
+                  <Bus className="size-4" />
+                  {members.length > 1
+                    ? "My children take the school bus"
+                    : "My child takes the school bus"}
                 </span>
                 <span className="text-muted-foreground">
-                  {member.uses_bus
+                  {usesBus
                     ? "You'll get an email when they board and get off the bus, and a link to see where the bus is."
                     : "Leave off if you drop off and pick up at the gate."}
                 </span>
@@ -481,60 +558,72 @@ function Success({
 }: {
   result: Result;
   parentEmail: string;
-  photos: (string | null)[];
+  photos: (string | null)[][];
 }) {
   const terms = termsFor(result.orgType);
+  const totalPasses = result.members.reduce((n, m) => n + m.passes.length, 0);
+  const names = result.members.map((m) => m.name).join(" and ");
   return (
     <div className="min-h-screen pb-16">
       <header className="bg-gradient-ink px-4 pb-10 pt-8 text-center text-ink-foreground">
         <CheckCircle2 className="animate-gate-pop mx-auto size-14 text-checkin" />
         <h1 className="mt-4 text-3xl font-extrabold">Registration complete</h1>
         <p className="mx-auto mt-2 max-w-md text-ink-muted">
-          {result.passes.length} {result.passes.length === 1 ? "pass is" : "passes are"} ready for{" "}
-          {result.memberName} at {result.orgName}. Send each {terms.guardian.toLowerCase()} their
-          pass. They show the QR code to the guard at the gate.
+          {totalPasses} {totalPasses === 1 ? "pass is" : "passes are"} ready for {names} at{" "}
+          {result.orgName}.{" "}
+          {result.passesEmailed > 0
+            ? `Each ${terms.guardian.toLowerCase()} has been emailed their own pass and QR code.`
+            : `Send each ${terms.guardian.toLowerCase()} their pass.`}{" "}
+          They show the QR code to the guard at the gate.
         </p>
       </header>
       <div className="mx-auto -mt-4 max-w-xl space-y-8 px-4">
-        {result.passes.map((p, idx) => {
-          const link = passUrl(p.hash);
-          return (
-            <div key={p.id} className="space-y-3">
-              <PassCard
-                hash={p.hash}
-                guardianName={p.name}
-                relationship={p.relationship}
-                memberName={result.memberName}
-                orgName={result.orgName}
-                photoUrl={photos[idx] ?? null}
-                guardianLabel={terms.guardian}
-              />
-              <div className="mx-auto flex max-w-sm gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(link);
-                    toast.success("Pass link copied");
-                  }}
-                >
-                  <Copy /> Copy link
-                </Button>
-                <Button asChild variant="ink" className="flex-1">
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(
-                      `Hello ${p.name}, you've been registered to drop off and pick up ${result.memberName} at ${result.orgName}. Show this pass to the guard at the gate: ${link}`,
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Share2 /> WhatsApp
-                  </a>
-                </Button>
-              </div>
-            </div>
-          );
-        })}
+        {result.members.map((m, mi) => (
+          <div key={m.id} className="space-y-6">
+            {result.members.length > 1 && (
+              <h2 className="font-display text-xl font-bold">{m.name}</h2>
+            )}
+            {m.passes.map((p, idx) => {
+              const link = passUrl(p.hash);
+              return (
+                <div key={p.id} className="space-y-3">
+                  <PassCard
+                    hash={p.hash}
+                    guardianName={p.name}
+                    relationship={p.relationship}
+                    memberName={m.name}
+                    orgName={result.orgName}
+                    photoUrl={photos[mi]?.[idx] ?? null}
+                    guardianLabel={terms.guardian}
+                  />
+                  <div className="mx-auto flex max-w-sm gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(link);
+                        toast.success("Pass link copied");
+                      }}
+                    >
+                      <Copy /> Copy link
+                    </Button>
+                    <Button asChild variant="ink" className="flex-1">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(
+                          `Hello ${p.name}, you've been registered to drop off and pick up ${m.name} at ${result.orgName}. Show this pass to the guard at the gate: ${link}`,
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <Share2 /> WhatsApp
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
         <p className="text-center text-sm text-muted-foreground">
           {result.busTrackToken ? "Gate and bus updates" : "Gate updates"} will be sent to{" "}
           <span className="font-medium text-foreground">{parentEmail}</span>. You can close this

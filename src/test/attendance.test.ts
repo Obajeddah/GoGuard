@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { attendanceByClass, schoolDate, schoolDays, studentAttendance } from "@/lib/attendance";
+import {
+  attendanceByClass,
+  marksFromEvents,
+  schoolDate,
+  schoolDays,
+  studentAttendance,
+} from "@/lib/attendance";
 import { attendanceSheets } from "@/lib/attendance-excel";
 
 const members = [
@@ -69,5 +75,67 @@ describe("Automatic attendance", () => {
       classes: [groups[0]!],
     });
     expect(sheets.map((s) => s.sheet)).toEqual(["Summary", "Primary 1"]);
+  });
+});
+
+describe("The school's own calendar", () => {
+  it("skips holidays and respects chosen weekdays", () => {
+    expect(
+      schoolDays("2026-11-02", "2026-11-08", "2026-11-30", {
+        weekdays: [1, 2, 3, 4, 5, 6],
+        holidays: ["2026-11-04"],
+      }),
+    ).toEqual(["2026-11-02", "2026-11-03", "2026-11-05", "2026-11-06", "2026-11-07"]);
+  });
+});
+
+describe("Attendance cut-off", () => {
+  const day = (h: number, m = 0) =>
+    `2026-11-02T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00+01:00`;
+
+  it("counts a pupil still in school at the cut-off", () => {
+    const marks = marksFromEvents(
+      [
+        { member_id: "a", action_type: "check_in", timestamp: day(7, 40) },
+        { member_id: "a", action_type: "check_out", timestamp: day(15) },
+      ],
+      [],
+      "10:00",
+    );
+    expect(marks[0]?.gate_days).toEqual(["2026-11-02"]);
+  });
+
+  it("marks absent a pupil sent home before the cut-off", () => {
+    const marks = marksFromEvents(
+      [
+        { member_id: "b", action_type: "check_in", timestamp: day(7, 45) },
+        { member_id: "b", action_type: "check_out", timestamp: day(9, 30) },
+      ],
+      [],
+      "10:00",
+    );
+    expect(marks).toEqual([]);
+  });
+
+  it("counts them again when they come back after the cut-off", () => {
+    const marks = marksFromEvents(
+      [
+        { member_id: "c", action_type: "check_in", timestamp: day(7, 45) },
+        { member_id: "c", action_type: "check_out", timestamp: day(9, 30) },
+        { member_id: "c", action_type: "check_in", timestamp: day(11) },
+      ],
+      [],
+      "10:00",
+    );
+    expect(marks[0]?.gate_days).toEqual(["2026-11-02"]);
+  });
+
+  it("counts a bus pupil even with no gate scan", () => {
+    const marks = marksFromEvents([], [{ member_id: "d", bus_days: ["2026-11-02"] }], "10:00");
+    expect(marks[0]).toEqual({
+      member_id: "d",
+      gate_days: [],
+      bus_days: ["2026-11-02"],
+    });
   });
 });

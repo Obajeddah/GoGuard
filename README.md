@@ -27,6 +27,8 @@ bun run dev
 6. **Data move.** Source code is not a database or photo backup. Export/import your school data separately, transfer the private `photos` objects without changing their paths, and arrange an auth-user migration or password reset. Point the deployed code at the new backend only after checks pass.
 7. **Email.** Set `EMAIL_FROM` to a verified sender domain and either `RESEND_API_KEY` or `EMAIL_API_URL` (+ optional `EMAIL_API_KEY`). Then schedule `POST /api/cron/send-emails` with `Authorization: Bearer $LOVABLE_CRON_SECRET` (e.g. a Netlify scheduled function or external cron). The drain re-checks billing on every run and will not email for lapsed schools. Gate scans, bus notices and bus emergencies are delivered idempotently; signup/password-reset mail still comes from your auth provider.
 
+8. **Contact encryption.** Parent, guardian and school contact details are encrypted before they are stored. Set `CONTACT_ENCRYPTION_KEY` (`openssl rand -base64 32`) on the server, then follow `docs/contact-encryption.md` for the two-step migration and backfill. Without the key the app refuses to save or read contact details instead of storing them in plain text.
+
 ### Clean-install checklist
 
 - Migrations finish on empty staging with no missing extension/function errors.

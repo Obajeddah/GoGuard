@@ -17,6 +17,10 @@ const tokenSchema = z
   .trim()
   .regex(/^[a-f0-9]{16,64}$/i, "Invalid link");
 
+/** Children in one registration must share the same guardians and the same
+ * bus. A different guardian or a different bus means a separate registration. */
+export const MAX_CHILDREN_PER_REGISTRATION = 5;
+
 export const getRegistrationOrg = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ token: tokenSchema }).parse(input))
   .handler(async ({ data }) => {
@@ -36,12 +40,17 @@ export const getRegistrationOrg = createServerFn({ method: "GET" })
     const { data: rows, error } = await sb.rpc("get_registration_branch", { _token: data.token });
     if (error) throw new Error("We couldn't open this registration link.");
     const row = rows?.[0];
+    const { readContact, CONTACT_ORG_PHONE } = await import("@/lib/contact-crypto.server");
     return row
       ? {
           id: row.org_id,
           name: row.org_name,
           type: row.org_type,
-          emergencyPhone: row.emergency_phone,
+          emergencyPhone: readContact(
+            row.emergency_phone_enc,
+            row.emergency_phone,
+            CONTACT_ORG_PHONE,
+          ),
           // Branch name only matters when the school has more than one campus.
           branchName: row.branch_count > 1 ? row.branch_name : null,
           classes: row.classes ?? [],
@@ -58,16 +67,20 @@ const guardianSchema = z.object({
   receive_general_notifications: z.boolean(),
 });
 
+const childSchema = z.object({
+  full_name: z.string().trim().min(1).max(120),
+  identifier_code: z.string().trim().max(60).optional().default(""),
+  photo: photoDataUrl,
+});
+
 const registrationSchema = z.object({
   token: tokenSchema,
   website: z.string().max(0).optional(), // honeypot
   siteUrl: z.string().url(), // Client's origin for email links
-  member: z.object({
-    full_name: z.string().trim().min(1).max(120),
-    identifier_code: z.string().trim().max(60).optional().default(""),
-    photo: photoDataUrl.optional(),
-    uses_bus: z.boolean().optional().default(false),
-  }),
+  // Two or three children can go in one form when the same guardians collect
+  // them and they ride the same bus.
+  members: z.array(childSchema).min(1).max(MAX_CHILDREN_PER_REGISTRATION),
+  uses_bus: z.boolean().optional().default(false),
   parent: z.object({
     name: z.string().trim().min(1).max(120),
     email: z.string().trim().email().max(255),
@@ -78,24 +91,27 @@ const registrationSchema = z.object({
 
 export type RegistrationInput = z.input<typeof registrationSchema>;
 
-function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; contentType: string } {
-  const [meta, b64] = dataUrl.split(",");
-  const contentType = /data:(.*?);base64/.exec(meta ?? "")?.[1] ?? "image/jpeg";
-  const bin = atob(b64 ?? "");
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { bytes, contentType };
-}
-
 /**
  * Public submission from the shared registration link. Anonymous parents can't
  * write to the database or storage directly, so after validating the link
- * token this uses the privileged client to store the ward, guardians and photos.
+ * token this uses the privileged client to store the wards, guardians and
+ * photos. Every child in one submission shares a family link, which is what the
+ * parent app uses to show them all under one sign-in.
  */
 export const submitRegistration = createServerFn({ method: "POST" })
   .validator((input: unknown) => registrationSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const {
+      encryptContact,
+      emailIndex,
+      readContact,
+      CONTACT_MEMBER_EMAIL,
+      CONTACT_MEMBER_PHONE,
+      CONTACT_GUARDIAN_EMAIL,
+      CONTACT_ORG_PHONE,
+      decryptGuardianRow,
+    } = await import("@/lib/contact-crypto.server");
 
     const { data: rows } = await supabaseAdmin.rpc("get_registration_branch", {
       _token: data.token,
@@ -106,7 +122,11 @@ export const submitRegistration = createServerFn({ method: "POST" })
           id: link.org_id,
           name: link.org_name,
           type: link.org_type,
-          emergency_phone: link.emergency_phone,
+          emergency_phone: readContact(
+            link.emergency_phone_enc,
+            link.emergency_phone,
+            CONTACT_ORG_PHONE,
+          ),
           classes: link.classes,
           transport: link.transport === true,
           branchId: link.branch_id,
@@ -117,100 +137,215 @@ export const submitRegistration = createServerFn({ method: "POST" })
         "This registration link is no longer active. Please ask the school for the current link.",
       );
     const classes = org.classes ?? [];
-    if (classes.length && !data.member.identifier_code)
-      throw new Error("Please choose your child's class.");
-    if (!isAllowedClass(classes, data.member.identifier_code))
-      throw new Error("Please choose your child's class from the list.");
-    const chosenClass =
-      classes.find((c) => c.toLowerCase() === data.member.identifier_code.toLowerCase()) ??
-      data.member.identifier_code;
+    for (const child of data.members) {
+      if (classes.length && !child.identifier_code)
+        throw new Error("Please choose each child's class.");
+      if (!isAllowedClass(classes, child.identifier_code))
+        throw new Error("Please choose each child's class from the list.");
+    }
+    const chosenClass = (code: string) =>
+      classes.find((c) => c.toLowerCase() === code.toLowerCase()) ?? code;
 
-    const { data: member, error: memberErr } = await supabaseAdmin
-      .from("members")
-      .insert({
-        org_id: org.id,
-        branch_id: org.branchId,
-        full_name: data.member.full_name,
-        identifier_code: chosenClass || null,
-        parent_or_owner_name: data.parent.name,
-        primary_email: data.parent.email.toLowerCase(),
-        primary_phone: data.parent.phone || null,
-        uses_bus: org.transport && data.member.uses_bus,
-      })
-      .select("id, uses_bus, bus_track_token, parent_link_token")
-      .single();
-    if (memberErr || !member)
-      throw new Error("We couldn't save your registration. Please try again.");
+    const parentEmail = data.parent.email.toLowerCase();
+    const parentHash = emailIndex(parentEmail);
+    const emailEnc = encryptContact(parentEmail, CONTACT_MEMBER_EMAIL);
+    const phoneEnc = encryptContact(data.parent.phone, CONTACT_MEMBER_PHONE);
+
+    // One address belongs to one person. The same guardian looking after
+    // siblings passes, but an address already used by a different guardian is
+    // refused so no family receives another family's updates.
+    const guardianClashes = await (await import("./email-rules.server")).findEmailClashes(
+      data.guardians.map((g) => ({ email: g.email, name: g.name })),
+    );
+    if (guardianClashes.length)
+      throw new Error(
+        `${guardianClashes[0]} is already registered with GoGuard by someone else. Please use a different email address, or ask the school office for help.`,
+      );
+
+    // A family registering another child keeps the link they already use, so
+    // the parent app never splits siblings across two invitations.
+    // Matched on the blind index, so the address itself is never compared in
+    // the database. Rows from before the backfill have no index yet, so the
+    // legacy column is tried second until step 2 empties it.
+    let existingFamily: { parent_link_token: string | null } | null = null;
+    if (parentHash) {
+      const { data } = await supabaseAdmin
+        .from("members")
+        .select("parent_link_token")
+        .eq("org_id", org.id)
+        .eq("parent_email_hash", parentHash)
+        .not("parent_link_token", "is", null)
+        .limit(1)
+        .maybeSingle();
+      existingFamily = data;
+    }
+    if (!existingFamily) {
+      const { data } = await supabaseAdmin
+        .from("members")
+        .select("parent_link_token")
+        .eq("org_id", org.id)
+        .ilike("primary_email", parentEmail)
+        .not("parent_link_token", "is", null)
+        .limit(1)
+        .maybeSingle();
+      existingFamily = data;
+    }
+    const parentLinkToken = existingFamily?.parent_link_token ?? crypto.randomUUID();
+
+    const createdIds: string[] = [];
 
     try {
-      const upload = async (path: string, dataUrl: string) => {
-        const { bytes, contentType } = decodeDataUrl(dataUrl);
-        const { error } = await supabaseAdmin.storage
-          .from("photos")
-          .upload(path, bytes, { contentType, upsert: true });
-        if (error) throw new Error("A photo couldn't be uploaded. Please try a different picture.");
-        return path;
-      };
+      const { uploadPhoto } = await import("./photo-storage.server");
+      const upload = (path: string, dataUrl: string) => uploadPhoto(supabaseAdmin, path, dataUrl);
 
-      if (data.member.photo) {
-        const path = await upload(`${org.id}/${member.id}/member.jpg`, data.member.photo);
+      const members: {
+        id: string;
+        full_name: string;
+        uses_bus: boolean;
+        bus_track_token: string | null;
+      }[] = [];
+
+      for (const child of data.members) {
+        const { data: member, error: memberErr } = await supabaseAdmin
+          .from("members")
+          .insert({
+            org_id: org.id,
+            branch_id: org.branchId,
+            full_name: child.full_name,
+            identifier_code: chosenClass(child.identifier_code) || null,
+            parent_or_owner_name: data.parent.name,
+            // Plaintext columns are written empty on purpose: the encrypted
+            // value and its blind index are the only copies.
+            primary_email: null,
+            primary_email_enc: emailEnc,
+            parent_email_hash: parentHash,
+            primary_phone: null,
+            primary_phone_enc: phoneEnc,
+            uses_bus: org.transport && data.uses_bus,
+            parent_link_token: parentLinkToken,
+          })
+          .select("id, full_name, uses_bus, bus_track_token")
+          .single();
+        if (memberErr || !member)
+          throw new Error("We couldn't save your registration. Please try again.");
+        createdIds.push(member.id);
+        members.push(member);
+
+        const path = await upload(`${org.id}/${member.id}/member.jpg`, child.photo);
         await supabaseAdmin.from("members").update({ photo_path: path }).eq("id", member.id);
       }
 
-      const passes: {
+      // The guardians are the same people for every child in this form, so each
+      // face is uploaded once and reused on each child's guardian record.
+      const guardianPhotos: string[] = [];
+      for (const [i, g] of data.guardians.entries()) {
+        guardianPhotos.push(
+          await upload(`${org.id}/${createdIds[0]}/guardian-${i}.jpg`, g.photo),
+        );
+      }
+
+      const passesByMember: {
         id: string;
         name: string;
         relationship: string;
         email: string;
         hash: string;
-      }[] = [];
-      for (const g of data.guardians) {
-        const { data: row, error } = await supabaseAdmin
-          .from("guardians")
-          .insert({
-            member_id: member.id,
-            org_id: org.id,
-            name: g.name,
-            relationship: g.relationship,
-            email: g.email.toLowerCase(),
-            receive_general_notifications: g.receive_general_notifications,
-          })
-          .select("id, name, relationship, email, unique_qr_hash")
-          .single();
-        if (error || !row)
-          throw new Error("We couldn't save one of the guardians. Please try again.");
-        const path = await upload(`${org.id}/${member.id}/${row.id}.jpg`, g.photo);
-        await supabaseAdmin.from("guardians").update({ photo_path: path }).eq("id", row.id);
-        passes.push({
-          id: row.id,
-          name: row.name,
-          relationship: row.relationship,
-          email: row.email,
-          hash: row.unique_qr_hash,
+      }[][] = [];
+
+      for (const member of members) {
+        const passes: {
+          id: string;
+          name: string;
+          relationship: string;
+          email: string;
+          hash: string;
+        }[] = [];
+        for (const [i, g] of data.guardians.entries()) {
+          const { data: row, error } = await supabaseAdmin
+            .from("guardians")
+            .insert({
+              member_id: member.id,
+              org_id: org.id,
+              name: g.name,
+              relationship: g.relationship,
+              email: null,
+              email_enc: encryptContact(g.email.toLowerCase(), CONTACT_GUARDIAN_EMAIL),
+              email_hash: emailIndex(g.email),
+              receive_general_notifications: g.receive_general_notifications,
+            })
+            .select("id, name, relationship, email, email_enc, unique_qr_hash")
+            .single();
+          if (error || !row)
+            throw new Error("We couldn't save one of the guardians. Please try again.");
+          await supabaseAdmin
+            .from("guardians")
+            .update({ photo_path: guardianPhotos[i] ?? null })
+            .eq("id", row.id);
+          // Saving the photo re-issues the guardian's pass code, so read the
+          // code back after the upload: the one from the insert is stale and
+          // would show a barcode the gate scanner rejects.
+          const { data: fresh } = await supabaseAdmin
+            .from("guardians")
+            .select("unique_qr_hash")
+            .eq("id", row.id)
+            .single();
+          passes.push({
+            id: row.id,
+            name: row.name,
+            relationship: row.relationship,
+            email: decryptGuardianRow(row).email ?? g.email,
+            hash: fresh?.unique_qr_hash ?? row.unique_qr_hash,
+          });
+        }
+        passesByMember.push(passes);
+      }
+
+      // One parent app link for the whole family.
+      const pwaUrl = (
+        await createParentPwaToken({
+          data: {
+            memberId: members[0]!.id,
+            orgId: org.id,
+            parentLinkToken,
+            siteUrl: data.siteUrl,
+          },
+        })
+      ).pwaUrl;
+
+      // Every guardian gets their own barcode by email, for every child. A mail
+      // failure never undoes a registration.
+      let passesEmailed = 0;
+      for (const member of members) {
+        const mailed = await (
+          await import("./pass-email.server")
+        ).sendPassEmailsForMember({
+          memberId: member.id,
+          siteUrl: data.siteUrl,
+          parentAppUrl: pwaUrl,
         });
+        passesEmailed += mailed.sent;
+        if (mailed.failed || mailed.error)
+          console.error("[registration] pass emails:", mailed.failed, mailed.error);
       }
 
       return {
         orgName: org.name,
         orgType: org.type,
         emergencyPhone: org.emergency_phone,
-        memberName: data.member.full_name,
-        busTrackToken: member.uses_bus ? member.bus_track_token : null,
-        passes,
-        // Create PWA token for parent app access
-        pwaToken: (
-          await createParentPwaToken({
-            data: {
-              memberId: member.id,
-              orgId: org.id,
-              parentLinkToken: member.parent_link_token!,
-              siteUrl: data.siteUrl,
-            },
-          })
-        ).pwaUrl,
+        members: members.map((member, idx) => ({
+          id: member.id,
+          name: member.full_name,
+          passes: passesByMember[idx] ?? [],
+        })),
+        pwaToken: pwaUrl,
+        passesEmailed,
+        busTrackToken: members[0]?.uses_bus ? members[0]?.bus_track_token ?? null : null,
       };
     } catch (e) {
-      await supabaseAdmin.from("members").delete().eq("id", member.id);
+      if (createdIds.length) {
+        await supabaseAdmin.from("guardians").delete().in("member_id", createdIds);
+        await supabaseAdmin.from("members").delete().in("id", createdIds);
+      }
       throw e instanceof Error ? e : new Error("Registration didn't go through. Please try again.");
     }
   });
@@ -222,10 +357,11 @@ export const getPass = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { readContact, CONTACT_ORG_PHONE } = await import("@/lib/contact-crypto.server");
     const { data: g } = await supabaseAdmin
       .from("guardians")
       .select(
-        "name, relationship, photo_path, unique_qr_hash, member:members(full_name, identifier_code), org:organizations(name, type, emergency_phone)",
+        "name, relationship, photo_path, unique_qr_hash, member:members(full_name, identifier_code), org:organizations(name, type, emergency_phone, emergency_phone_enc)",
       )
       .eq("unique_qr_hash", data.hash)
       .maybeSingle();
@@ -246,6 +382,10 @@ export const getPass = createServerFn({ method: "GET" })
       identifier: g.member?.identifier_code ?? "",
       orgName: g.org?.name ?? "",
       orgType: g.org?.type ?? "school",
-      emergencyPhone: g.org?.emergency_phone ?? null,
+      emergencyPhone: readContact(
+        g.org?.emergency_phone_enc,
+        g.org?.emergency_phone,
+        CONTACT_ORG_PHONE,
+      ),
     };
   });

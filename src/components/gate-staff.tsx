@@ -109,7 +109,7 @@ export function GateStaff() {
         <h2 className="text-xl font-bold">School team</h2>
         <p className="text-muted-foreground">
           Create a sign-in for each guard. They use the same Sign in page, can view live activity
-          and reports, and scan passes — but can't change any settings or records.
+          and reports, and scan passes, but can't change any settings or records.
         </p>
         <ul className="mt-5 space-y-2">
           {staffQuery.isLoading && (
@@ -180,7 +180,8 @@ export function GateStaff() {
 
       <section className="h-fit rounded-3xl border bg-card p-5">
         <h3 className="flex items-center gap-2 text-lg font-bold">
-          <UserPlus className="size-5" /> New gate staff account
+          <UserPlus className="size-5" />
+          {role === "admin" ? "New branch administrator" : "New gate staff account"}
         </h3>
         <form
           className="mt-4 space-y-3"
@@ -228,13 +229,16 @@ export function GateStaff() {
                 branch.branches.find((b) => b.id === branchId) ??
                 (branch.branches.length === 1 ? branch.branches[0] : null);
               if (!selected || !orgId) return;
+              const roleQuery = role === "admin" ? "&role=admin" : "";
               await navigator.clipboard.writeText(
-                `${window.location.origin}/onboard/guard?org=${orgId}&branch=${selected.id}&code=${selected.guard_invite_token}`,
+                `${window.location.origin}/onboard/guard?org=${orgId}&branch=${selected.id}&code=${selected.guard_invite_token}${roleQuery}`,
               );
-              toast.success("Guard invite link copied");
+              toast.success(
+                role === "admin" ? "Administrator invite link copied" : "Guard invite link copied",
+              );
             }}
           >
-            Copy guard invite link
+            {role === "admin" ? "Copy administrator invite link" : "Copy guard invite link"}
           </Button>
           <Field label="Full name">
             <Input
@@ -243,7 +247,14 @@ export function GateStaff() {
               onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
             />
           </Field>
-          <Field label="Email" hint="Used as their sign-in. It doesn't need to be a real inbox.">
+          <Field
+            label="Email"
+            hint={
+              role === "admin"
+                ? "Their sign-in for this branch. They see everything at their branch, nothing at others."
+                : "Used as their sign-in. It doesn't need to be a real inbox."
+            }
+          >
             <Input
               type="email"
               required
@@ -251,7 +262,14 @@ export function GateStaff() {
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             />
           </Field>
-          <Field label="Password" hint="At least 8 characters. Share it with the guard in person.">
+          <Field
+            label="Password"
+            hint={
+              role === "admin"
+                ? "At least 8 characters. Share it with them in person."
+                : "At least 8 characters. Share it with the guard in person."
+            }
+          >
             <Input
               type="password"
               required

@@ -5,9 +5,9 @@ import { GateStaff } from "@/components/gate-staff";
 export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({
     meta: [
-      { title: "School team — GoGuard" },
+      { title: "School team · GoGuard" },
       { name: "description", content: "Manage school gate staff and their access." },
-      { property: "og:title", content: "School team — GoGuard" },
+      { property: "og:title", content: "School team · GoGuard" },
       { property: "og:description", content: "Manage school gate staff and their access." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

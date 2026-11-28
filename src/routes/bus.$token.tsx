@@ -31,12 +31,12 @@ export const Route = createFileRoute("/bus/$token")({
   },
   head: () => ({
     meta: [
-      { title: "Where is my child? — GoGuard" },
+      { title: "Where is my child? · GoGuard" },
       {
         name: "description",
         content: "Your child's school bus status and where the bus was last seen.",
       },
-      { property: "og:title", content: "Where is my child? — GoGuard" },
+      { property: "og:title", content: "Where is my child? · GoGuard" },
       {
         property: "og:description",
         content: "Your child's school bus status and where the bus was last seen.",

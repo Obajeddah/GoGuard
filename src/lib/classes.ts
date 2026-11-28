@@ -72,13 +72,13 @@ export function nameKey(fullName: string): string {
 export interface DuplicateInfo {
   /** Other registrations with the same name. */
   others: string[];
-  /** The matching registrations were made from different parent emails. */
+  /** The matching registrations were made under different parent names. */
   differentParents: boolean;
 }
 
-export function findDuplicates<T extends { id: string; full_name: string; primary_email: string }>(
-  members: T[],
-): Map<string, DuplicateInfo> {
+export function findDuplicates<
+  T extends { id: string; full_name: string; parent_or_owner_name: string | null },
+>(members: T[]): Map<string, DuplicateInfo> {
   const groups = new Map<string, T[]>();
   for (const m of members) {
     const k = nameKey(m.full_name);
@@ -88,11 +88,15 @@ export function findDuplicates<T extends { id: string; full_name: string; primar
   const result = new Map<string, DuplicateInfo>();
   for (const list of groups.values()) {
     if (list.length < 2) continue;
-    const emails = new Set(list.map((m) => m.primary_email.trim().toLowerCase()));
+    // Parent names, not contact details: the directory never receives contact
+    // information, and a name is enough to spot two different families.
+    const parents = new Set(
+      list.map((m) => (m.parent_or_owner_name ?? "").trim().toLowerCase()),
+    );
     for (const m of list) {
       result.set(m.id, {
         others: list.filter((o) => o.id !== m.id).map((o) => o.id),
-        differentParents: emails.size > 1,
+        differentParents: parents.size > 1,
       });
     }
   }

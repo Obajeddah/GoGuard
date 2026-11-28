@@ -2,7 +2,7 @@ import { PhoneCall } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-/** "Something unexpected? Call the school" block — mirrors the button in gate emails. */
+/** "Something unexpected? Call the school" block: mirrors the button in gate emails. */
 export function EmergencyLine({
   phone,
   orgName,

@@ -16,7 +16,7 @@
  * Storage is process memory: on Netlify Functions each warm instance keeps its
  * own counters, so the limits below are per instance, not global. That still
  * stops single-source enumeration (the realistic abuse: scripted token/hash
- * guessing), and the seam is one object — swap the registry for a shared table
+ * guessing), and the seam is one object, swap the registry for a shared table
  * when the volume justifies it. Fail-open everywhere: a limiter fault or a
  * missing client IP must never take a parent-facing page down.
  */
@@ -159,7 +159,7 @@ function rateLimitPage(seconds: number, message: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Too many attempts — GoGuard</title>
+<title>Too many attempts · GoGuard</title>
 <style>
   :root { color-scheme: light; }
   body {

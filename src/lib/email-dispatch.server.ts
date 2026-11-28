@@ -3,13 +3,21 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { billingState } from "./billing";
 import { emailConfigured, sendEmail, type OutgoingEmail } from "./email.server";
+import { emailLayout, emailFooter } from "./email-template";
 import { gateEmail } from "./gate-email";
 import {
   busRideRecipients,
   gateRecipients,
   type RecipientGuardian,
 } from "./notification-recipients";
-import { rideEmail } from "./ride-email";
+import { rideEmail, rideEmailHtml } from "./ride-email";
+import { redactValue } from "./redact";
+import {
+  decryptGuardianRow,
+  decryptMemberRow,
+  decryptOrgRow,
+  emailIndex,
+} from "./contact-crypto.server";
 
 const BATCH = 20;
 const now = () => new Date().toISOString();
@@ -26,7 +34,8 @@ type OrgRow = {
 type MemberRow = {
   id: string;
   full_name: string;
-  primary_email: string;
+  primary_email: string | null;
+  primary_email_enc?: string | null;
   parent_or_owner_name: string | null;
   bus_track_token: string;
 };
@@ -34,7 +43,8 @@ type GuardianRow = {
   id: string;
   member_id: string;
   name: string;
-  email: string;
+  email: string | null;
+  email_enc?: string | null;
   receive_general_notifications: boolean;
 };
 
@@ -42,28 +52,30 @@ async function loadOrgs(ids: string[]): Promise<Map<string, OrgRow>> {
   if (!ids.length) return new Map();
   const { data } = await supabaseAdmin
     .from("organizations")
-    .select("id, name, admin_email, emergency_phone, plan, trial_ends_at, paid_until")
+    .select("id, name, admin_email, emergency_phone, emergency_phone_enc, plan, trial_ends_at, paid_until")
     .in("id", ids);
-  return new Map((data ?? []).map((o) => [o.id, o as OrgRow]));
+  return new Map(
+    (data ?? []).map((o) => [o.id, decryptOrgRow(o) as OrgRow]),
+  );
 }
 
 async function loadMembers(ids: string[]): Promise<Map<string, MemberRow>> {
   if (!ids.length) return new Map();
   const { data } = await supabaseAdmin
     .from("members")
-    .select("id, full_name, primary_email, parent_or_owner_name, bus_track_token")
+    .select("id, full_name, primary_email, primary_email_enc, parent_or_owner_name, bus_track_token")
     .in("id", ids);
-  return new Map((data ?? []).map((m) => [m.id, m as MemberRow]));
+  return new Map((data ?? []).map((m) => [m.id, decryptMemberRow(m) as MemberRow]));
 }
 
 async function loadGuardians(memberIds: string[]): Promise<Map<string, GuardianRow[]>> {
   if (!memberIds.length) return new Map();
   const { data } = await supabaseAdmin
     .from("guardians")
-    .select("id, member_id, name, email, receive_general_notifications")
+    .select("id, member_id, name, email, email_enc, receive_general_notifications")
     .in("member_id", memberIds);
   const out = new Map<string, GuardianRow[]>();
-  for (const g of (data ?? []) as GuardianRow[]) {
+  for (const g of ((data ?? []) as GuardianRow[]).map(decryptGuardianRow)) {
     const list = out.get(g.member_id) ?? [];
     list.push(g);
     out.set(g.member_id, list);
@@ -81,15 +93,14 @@ async function deliveredTo(sourceTable: string, sourceId: string): Promise<Set<s
 }
 
 async function recordDelivery(sourceTable: string, sourceId: string, emails: string[]) {
-  if (!emails.length) return;
-  await supabaseAdmin.from("email_deliveries").upsert(
-    emails.map((email) => ({
-      source_table: sourceTable,
-      source_id: sourceId,
-      email: email.toLowerCase(),
-    })),
-    { onConflict: "source_table,source_id,email" },
-  );
+  const hashes = emails
+    .map((email) => emailIndex(email))
+    .filter((hash): hash is string => !!hash)
+    .map((email) => ({ source_table: sourceTable, source_id: sourceId, email }));
+  if (!hashes.length) return;
+  await supabaseAdmin
+    .from("email_deliveries")
+    .upsert(hashes, { onConflict: "source_table,source_id,email" });
 }
 
 async function deliver(
@@ -100,12 +111,13 @@ async function deliver(
 ): Promise<boolean> {
   const sentNow: string[] = [];
   for (const message of messages) {
-    if (pending.has(message.to.toLowerCase())) continue;
+    const key = emailIndex(message.to);
+    if (key && pending.has(key)) continue;
     try {
       await sendEmail(message);
       sentNow.push(message.to);
     } catch (error) {
-      console.error(`[email] ${sourceTable}/${sourceId} -> ${message.to}`, error);
+      console.error(`[email] ${sourceTable}/${sourceId} failed`, redactValue(error));
       return false;
     }
   }
@@ -227,16 +239,20 @@ export async function sendPendingEmails(
       siteUrl,
     });
     const pending = await deliveredTo("transport_notices", notice.id);
+    // Same guard as the immediate sender: one notice is mailed once, no matter
+    // which of the two paths reaches it first.
+    const { claimNotice, releaseNotice } = await import("./bus-email.server");
+    if (!(await claimNotice(notice.id))) continue;
     const messages = recipients.map((recipient) => ({
       to: recipient.email,
       subject: content.subject,
       text: [content.message, ...content.links.map((l) => `${l.label}: ${l.href}`)].join("\n\n"),
-      html: [
-        content.message,
-        ...content.links.map((l) => `<p><a href="${l.href}">${l.label}</a></p>`),
-      ].join(""),
+      html: rideEmailHtml(content, { orgName: org.name, siteUrl }),
     }));
-    if (!(await deliver("transport_notices", notice.id, messages, pending))) continue;
+    if (!(await deliver("transport_notices", notice.id, messages, pending))) {
+      await releaseNotice(notice.id);
+      continue;
+    }
     await supabaseAdmin.from("transport_notices").update({ emailed_at: now() }).eq("id", notice.id);
     sent++;
   }
@@ -251,9 +267,17 @@ export async function sendPendingEmails(
     const messages = [
       {
         to: org.admin_email,
-        subject: `GoGuard fleet notice — ${org.name}`,
+        subject: `Fleet notice: ${org.name}`,
         text: notice.message,
-        html: `<p>${notice.message}</p>`,
+        html: emailLayout({
+          orgName: org.name,
+          label: "Fleet notice",
+          heading: "Fleet notice",
+          intro: notice.message,
+          body: "",
+          footerNote: emailFooter(org.name),
+          siteUrl,
+        }),
       },
     ];
     if (!(await deliver("transport_notices", notice.id, messages, pending))) continue;
@@ -271,9 +295,18 @@ export async function sendPendingEmails(
     const messages = [
       {
         to: org.admin_email,
-        subject: `Bus emergency — ${org.name}`,
+        subject: `Bus emergency: ${org.name}`,
         text: `An emergency was reported on bus ${alert.bus_id}. Open GoGuard for details.`,
-        html: `<p>An emergency was reported on bus ${alert.bus_id}. Open GoGuard for details.</p>`,
+        html: emailLayout({
+          orgName: org.name,
+          label: "Bus emergency",
+          preheader: `Emergency reported on bus ${alert.bus_id}.`,
+          heading: "Bus emergency reported",
+          intro: `An emergency was reported on bus ${alert.bus_id}. Open GoGuard for details.`,
+          body: "",
+          footerNote: emailFooter(org.name),
+          siteUrl,
+        }),
       },
     ];
     if (!(await deliver("bus_emergencies", alert.id, messages, pending))) continue;

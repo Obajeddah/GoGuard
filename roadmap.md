@@ -17,7 +17,7 @@
 - [x] Team opens its own staff page instead of redirecting to Settings (signed-in browser check unavailable: requester has no matching account).
 - [x] Rename the app GoGuard and replace campus wording with school wording.
 - [x] Homepage Bimbo review and confirmed school/student/release figures.
-- [ ] Additional testimonials — waiting for genuine approved customer quotes.
+- [ ] Additional testimonials, waiting for genuine approved customer quotes.
 - [x] Homepage FAQ and full plan comparison on Pricing.
 
 - [x] Fix compilation errors from the branch, bus-login and pricing updates.
@@ -27,8 +27,8 @@
 - [x] Guardian QR passes + public pass page
 - [x] Guard scanner with check-in / check-out, audio + animation
 - [x] Live dashboard, members (manual + CSV), reports with CSV export, gate staff
-- [ ] Email notifications on scan (parent = all, scanned guardian = own, opted-in guardians = all), with "Not expecting this? Call the school" emergency button — blocked: needs an email sender domain
-- [ ] Email each guardian their pass link after registration — blocked: same
+- [ ] Email notifications on scan (parent = all, scanned guardian = own, opted-in guardians = all), with "Not expecting this? Call the school" emergency button, blocked: needs an email sender domain
+- [ ] Email each guardian their pass link after registration, blocked: same
 
 ## From second brief (GatePass overview)
 
@@ -45,7 +45,7 @@
 - [x] ~~Register and Sign in pages with School / Industry / Estate tabs~~ replaced: schools only for now
 - [x] Schools set an emergency line (at signup + Settings); shown to parents/guardians
 - [x] Gate staff see Live, Students, Scanner, Reports read-only; no admin actions (Settings, link, edits, export)
-- [x] Parents never sign in — link-only registration
+- [x] Parents never sign in, link-only registration
 - [x] School-only focus: remove industry/estate sign-up tabs and landing section (estate/industry kept internally for later)
 
 ## Fourth brief (subscription)
@@ -56,11 +56,11 @@
 - [x] Checkout for monthly + yearly via Paystack (card, transfer, USSD), webhook + return page
 - [x] Paystack secret key saved; checkout opens Paystack (verified)
 - [x] Live Paystack key saved; live checkout opens (verified)
-- [ ] Set live webhook URL in Paystack — blocked: app must be published first
+- [ ] Set live webhook URL in Paystack, blocked: app must be published first
 
 ## Fifth brief (lean site)
 
-- [x] Home page: short, to the point — what it does, Register, Check our pricing (no prices, no how-to)
+- [x] Home page: short, to the point, what it does, Register, Check our pricing (no prices, no how-to)
 - [x] Separate Pricing page; every plan shows the 14-day free trial
 - [x] Keep database portable (PostgreSQL) for future self-hosting
 
@@ -78,7 +78,7 @@
 - [x] Transport package toggle in Settings unlocks a Fleet tab
 - [x] Fleet admin: buses (number, plate, route), driver/attendant accounts, assign crew, assign riders
 - [x] Crew change creates a parent notice for that bus
-- [ ] Email bus notices to parents — blocked: needs an email sender domain
+- [ ] Email bus notices to parents, blocked: needs an email sender domain
 - [x] Drivers/attendants sign in straight to the bus app
 - [x] Bus app: Start/End ride, Waiting / Onboard tabs, one-tap board/drop, guardian photo + pass check for afternoon drop-off
 - [x] GPS location while a ride is on; offline queue that syncs when back online
@@ -89,7 +89,7 @@
 - [x] Parent form: "My child takes the school bus" tick (only when the school has transport)
 - [x] Fleet → Bus pupils: ticked pupils wait in "Needs a bus" until the school puts them on a bus with its crew
 - [x] Ride update notice per pupil boarded / dropped off (none on Start ride)
-- [ ] Email ride updates to bus parents — blocked: needs an email sender domain
+- [ ] Email ride updates to bus parents, blocked: needs an email sender domain
 - [x] Private bus link for bus parents: child's status, bus, crew, last location (hidden once child is dropped)
 - [x] Bus app: Start ride only starts the ride; a separate Onboard pupils button opens the list
 
@@ -100,7 +100,7 @@
 - [x] Every ride email carries two support links: "Not expecting this?" (school emergency line) and "Where is my child?"
 - [x] "Where is my child?" page: "Last seen at <area> · N minutes ago" only while the child is on board; no map
 - [x] Parents no longer get a link to save on the registration page; Fleet keeps full live tracking for the school
-- [ ] Send the ride emails — blocked: needs an email sender domain
+- [ ] Send the ride emails, blocked: needs an email sender domain
 
 ## Tenth brief (attendance, plans, Fleet access)
 
@@ -111,7 +111,7 @@
 - [x] Plans: Gate ₦7,500/mo (was ₦12,000), Gate + Transport ₦15,000/mo (was ₦21,000), Full session ₦90,000 (was ₦120,000); 14-day trial
 - [x] Fleet and bus app only with transport ticked + trial or a transport plan
 - [x] Self-hosting notes and settings template for GitHub
-- [ ] Push to GitHub — waiting on the user to create and connect their GitHub account
+- [ ] Push to GitHub, waiting on the user to create and connect their GitHub account
 
 ## Eleventh brief (polish)
 
@@ -120,7 +120,7 @@
 
 ## Eleventh brief (bus login, branches, security)
 
-- [ ] Fleet map: "Open in Google Maps" — admin's location to the bus's live location
+- [ ] Fleet map: "Open in Google Maps", admin's location to the bus's live location
 - [ ] One login per bus (replaces personal driver/attendant logins); set when adding a bus; admin can change password or deactivate
 - [ ] Only the bus login's device sends location; admin opening the bus app never shares location
 - [ ] Driver can pause location; admin or parent "Where is my child?" asks the bus device for one fresh location, then it pauses again

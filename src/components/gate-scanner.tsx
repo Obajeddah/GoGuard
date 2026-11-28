@@ -8,6 +8,7 @@ import {
   Camera,
   CameraOff,
   CheckCircle2,
+  ImageUp,
   Keyboard,
   Loader2,
   ShieldAlert,
@@ -37,17 +38,32 @@ interface ScanResult {
   };
   guardians: { id: string; name: string; relationship: string; photoUrl: string | null }[];
   lastAction: { action_type: "check_in" | "check_out"; timestamp: string } | null;
+  /** True while the child is still in school today, from the gate or the bus. */
+  inSchool: boolean;
+  /** When the child arrived, so the guard sees why check in is off. */
+  checkedInAt: string | null;
 }
 
 async function lookupPass(hash: string, orgId: string): Promise<ScanResult | string> {
-  const { data: g } = await supabase
+  const fields = "id, name, relationship, photo_path, member_id, org_id, unique_qr_hash";
+  let { data: g } = await supabase
     .from("guardians")
-    .select("id, name, relationship, photo_path, member_id, org_id, unique_qr_hash")
+    .select(fields)
     .eq("unique_qr_hash", hash)
     .maybeSingle();
+  // Older printed codes may be upper-case; try that spelling before rejecting.
+  if (!g && hash !== hash.toUpperCase()) {
+    const retry = await supabase
+      .from("guardians")
+      .select(fields)
+      .eq("unique_qr_hash", hash.toUpperCase())
+      .maybeSingle();
+    g = retry.data;
+  }
   const check = checkPass(hash, g, { orgId });
   if (!check.ok || !g) return PASS_REJECTION[check.ok ? "unknown" : check.reason];
-  const [{ data: member }, { data: all }, { data: last }] = await Promise.all([
+  const today = startOfDay(new Date()).toISOString();
+  const [{ data: member }, { data: all }, { data: last }, { data: lastBus }] = await Promise.all([
     supabase
       .from("members")
       .select("id, full_name, identifier_code, photo_path")
@@ -62,7 +78,17 @@ async function lookupPass(hash: string, orgId: string): Promise<ScanResult | str
       .from("gate_logs")
       .select("action_type, timestamp")
       .eq("member_id", g.member_id)
-      .gte("timestamp", startOfDay(new Date()).toISOString())
+      .gte("timestamp", today)
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // The bus drops children at school too, so a child who arrived by bus is
+    // already in school even before any gate scan.
+    supabase
+      .from("pupil_bus_logs")
+      .select("status, timestamp, trip:bus_trips(direction)")
+      .eq("member_id", g.member_id)
+      .gte("timestamp", today)
       .order("timestamp", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -77,6 +103,24 @@ async function lookupPass(hash: string, orgId: string): Promise<ScanResult | str
     for (const s of signed ?? []) if (s.path && s.signedUrl) urls[s.path] = s.signedUrl;
   }
   const url = (p: string | null) => (p ? (urls[p] ?? null) : null);
+
+  const gateMs = last?.timestamp ? new Date(last.timestamp).getTime() : 0;
+  const busTrip = (lastBus as { trip?: { direction: string | null } | { direction: string | null }[] | null } | null)
+    ?.trip;
+  const busDirection = Array.isArray(busTrip) ? (busTrip[0]?.direction ?? null) : (busTrip?.direction ?? null);
+  const busMs = lastBus?.timestamp ? new Date(lastBus.timestamp).getTime() : 0;
+  let inSchool = false;
+  let checkedInAt: string | null = null;
+  if (lastBus && busMs >= gateMs) {
+    if (lastBus.status === "dropped_off" && busDirection !== "to_home") {
+      inSchool = true;
+      checkedInAt = lastBus.timestamp;
+    }
+  } else if (last?.action_type === "check_in") {
+    inSchool = true;
+    checkedInAt = last.timestamp;
+  }
+
   return {
     guardian: { id: g.id, name: g.name, relationship: g.relationship, photoUrl: url(g.photo_path) },
     member: {
@@ -92,6 +136,8 @@ async function lookupPass(hash: string, orgId: string): Promise<ScanResult | str
       photoUrl: url(x.photo_path),
     })),
     lastAction: last ?? null,
+    inSchool,
+    checkedInAt,
   };
 }
 
@@ -170,6 +216,45 @@ export function GateScanner() {
     }
   }, []);
 
+  /**
+   * Read a pass from a photo or screenshot. Guards often have the parent's
+   * WhatsApp image or a screenshot on their own phone, and a smudged print
+   * photographs better than it scans live.
+   */
+  const scanPhoto = useCallback(
+    async (file: File) => {
+      if (busyRef.current) return;
+      setInvalid(false);
+      setLooking(true);
+      type PhotoReader = {
+        scanFile: (f: File, showImage?: boolean) => Promise<string>;
+        clear: () => void;
+      };
+      let reader: PhotoReader | null = null;
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        reader = new Html5Qrcode("qr-photo-reader") as unknown as PhotoReader;
+        const text = await reader.scanFile(file, false);
+        await handleCode(text);
+      } catch {
+        beep("error");
+        setInvalid(
+          "No barcode found in that picture. Move closer, keep it flat and use a brighter photo.",
+        );
+        setTimeout(() => setInvalid(false), 2600);
+      } finally {
+        const done = reader;
+        try {
+          done?.clear();
+        } catch {
+          // nothing to clean up
+        }
+        setLooking(false);
+      }
+    },
+    [handleCode],
+  );
+
   const stopCamera = useCallback(async () => {
     const s = scannerRef.current;
     scannerRef.current = null;
@@ -188,21 +273,52 @@ export function GateScanner() {
     setCameraError(null);
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
-      const scanner = new Html5Qrcode("qr-reader", { verbose: false });
+      const scanner = new Html5Qrcode("qr-reader", {
+        verbose: false,
+        // Android and iPhone browsers have a fast built-in barcode reader.
+        useBarCodeDetectorIfSupported: true,
+      });
       scannerRef.current = scanner as unknown as typeof scannerRef.current;
       await scanner.start(
-        { facingMode: "environment" },
+        // Ask for the biggest, sharpest picture the phone can give. The old
+        // small preview is what made a slightly blurred code impossible to
+        // read and held parents up at the gate.
         {
-          fps: 12,
-          qrbox: (w: number, h: number) => ({
-            width: Math.min(w, h) * 0.72,
-            height: Math.min(w, h) * 0.72,
-          }),
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        } as MediaTrackConstraints,
+        {
+          // Read more frames a second and use the phone's own barcode reader
+          // where it has one, so a code is picked up almost instantly.
+          fps: 20,
+          qrbox: (w: number, h: number) => {
+            const edge = Math.max(220, Math.floor(Math.min(w, h) * 0.8));
+            return { width: edge, height: edge };
+          },
+          aspectRatio: 1,
+          disableFlip: true,
         },
         (text) => void handleCode(text),
         () => {},
       );
       setCameraOn(true);
+      // Phone cameras often start with a soft fixed focus. Continuous autofocus
+      // is the difference between a blurry live picture and a sharp one.
+      const video = document.querySelector<HTMLVideoElement>("#qr-reader video");
+      const track = (video?.srcObject as MediaStream | null)?.getVideoTracks()[0];
+      if (track) {
+        try {
+          const caps = track.getCapabilities?.() as { focusMode?: string[] } | undefined;
+          if (caps?.focusMode?.includes("continuous")) {
+            await track.applyConstraints({
+              advanced: [{ focusMode: "continuous" } as unknown as MediaTrackConstraintSet],
+            });
+          }
+        } catch {
+          // A phone that refuses the focus hint still scans normally.
+        }
+      }
     } catch {
       setCameraError(
         "The camera isn't available. Allow camera access in your browser, or enter the code by hand.",
@@ -227,6 +343,9 @@ export function GateScanner() {
 
   async function act(action: "check_in" | "check_out") {
     if (!result) return;
+    // Already in school: a second check in would move the child's arrival time
+    // and tell the parent something that did not happen.
+    if (action === "check_in" && result.inSchool) return;
     setSaving(action);
     try {
       const log = await record({ data: { guardianId: result.guardian.id, action } });
@@ -277,6 +396,8 @@ export function GateScanner() {
           id="qr-reader"
           className="aspect-square w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover"
         />
+        {/* Hidden host the photo reader uses; it never shows a picture. */}
+        <div id="qr-photo-reader" className="hidden" aria-hidden />
         {!cameraOn && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-ink-muted">
             <CameraOff className="size-10" />
@@ -312,7 +433,7 @@ export function GateScanner() {
           <p className="text-center text-sm text-muted-foreground">
             Hold the QR pass inside the frame
           </p>
-          {manual ? (
+          {manual && (
             <form
               className="flex gap-2"
               onSubmit={(e) => {
@@ -330,11 +451,30 @@ export function GateScanner() {
                 Look up
               </Button>
             </form>
-          ) : (
-            <Button variant="outline" className="w-full" onClick={() => setManual(true)}>
-              <Keyboard /> Enter code by hand
-            </Button>
           )}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              disabled={looking}
+              onClick={() => document.getElementById("qr-photo-input")?.click()}
+            >
+              <ImageUp /> Use a photo
+            </Button>
+            <Button variant="outline" onClick={() => setManual((m) => !m)}>
+              <Keyboard /> {manual ? "Hide code box" : "Enter code"}
+            </Button>
+          </div>
+          <input
+            id="qr-photo-input"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void scanPhoto(file);
+            }}
+          />
         </div>
       )}
 
@@ -433,12 +573,21 @@ export function GateScanner() {
             </div>
           </div>
 
+          {result.inSchool && (
+            <p className="rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                {result.member.full_name} is already in school
+                {result.checkedInAt ? ` since ${format(new Date(result.checkedInAt), "h:mm a")}` : ""}.
+              </span>{" "}
+              Check in is switched off so the record stays accurate. Only check out is available.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Button
               variant="checkin"
               size="xl"
               className={cn("flex-col gap-0", suggested !== "check_in" && "opacity-70")}
-              disabled={!!saving || !!done || !online}
+              disabled={!!saving || !!done || !online || result.inSchool}
               onClick={() => act("check_in")}
             >
               {saving === "check_in" ? (
@@ -447,7 +596,9 @@ export function GateScanner() {
                 <ArrowDownRight className="!size-7" />
               )}
               {terms.checkIn}
-              <span className="text-xs font-normal opacity-90">{terms.checkInHint}</span>
+              <span className="text-xs font-normal opacity-90">
+                {result.inSchool ? "Already in school" : terms.checkInHint}
+              </span>
             </Button>
             <Button
               variant="checkout"

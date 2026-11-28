@@ -1,11 +1,15 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Smartphone, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { verifyParentPwaOtp, resendParentPwaOtp } from "@/lib/parent-pwa.functions";
+import {
+  verifyParentPwaOtp,
+  resendParentPwaOtp,
+  getParentPwaGate,
+} from "@/lib/parent-pwa.functions";
 import { GateMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,12 +31,34 @@ function ParentOtpGate() {
   const { pwaToken } = Route.useLoaderData();
   const verifyOtp = useServerFn(verifyParentPwaOtp);
   const resendOtp = useServerFn(resendParentPwaOtp);
+  const gate = useServerFn(getParentPwaGate);
 
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
   const [verified, setVerified] = useState(false);
   const [hasWebAuthn, setHasWebAuthn] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
+  // This phone may already have opened the app from this link. If so there is
+  // nothing to type: go straight through instead of asking for a code again.
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    gate({ data: { pwaToken } })
+      .then((res) => {
+        if (!cancelled && res.verified) {
+          window.location.replace(`/parent/app/${pwaToken}`);
+          return;
+        }
+        if (!cancelled) setChecking(false);
+      })
+      .catch(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pwaToken]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +71,12 @@ function ParentOtpGate() {
       const res = await verifyOtp({ data: { pwaToken, otpCode: otp } });
       setVerified(true);
       setHasWebAuthn(res.hasWebAuthn);
-      toast.success("Verified! Opening your child's status...");
+      try {
+        localStorage.setItem("goguard_parent_token", pwaToken);
+      } catch {
+        // Private browsing can block storage; the link still opens now.
+      }
+      toast.success("You're in. Opening your children now.");
       window.location.href = `/parent/app/${pwaToken}`;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed");
@@ -58,16 +89,31 @@ function ParentOtpGate() {
     setResendBusy(true);
     try {
       const res = await resendOtp({ data: { pwaToken } });
-      if (res.otpCode) {
-        toast.success(`New code sent: ${res.otpCode} (check your email/SMS)`);
+      if (res.emailed) {
+        setOtp("");
+        toast.success("A new code is on its way. Check your inbox and the spam folder.");
       } else {
-        toast.success("New code sent to your email/SMS");
+        toast.error(
+          "We couldn't email a new code just now. Use the code from your original email, or call the school office.",
+        );
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to resend code");
+      toast.error(err instanceof Error ? err.message : "We couldn't send a new code.");
     } finally {
       setResendBusy(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="text-center">
+          <GateMark className="mx-auto mb-4 size-10" />
+          <Loader2 className="mx-auto size-6 animate-spin text-primary" />
+          <p className="mt-3 text-sm text-muted-foreground">Opening your children…</p>
+        </div>
+      </div>
+    );
   }
 
   if (verified) {
@@ -77,8 +123,8 @@ function ParentOtpGate() {
           <div className="animate-gate-pop mx-auto size-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
             <Smartphone className="size-8 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold">Verified!</h1>
-          <p className="mt-2 text-muted-foreground">Redirecting to your child's status...</p>
+          <h1 className="text-2xl font-bold">You're in</h1>
+          <p className="mt-2 text-muted-foreground">Opening your children…</p>
           <div className="mt-4 flex justify-center">
             <Loader2 className="animate-spin size-6 text-primary" />
           </div>
@@ -92,10 +138,11 @@ function ParentOtpGate() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <GateMark className="size-10 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold">GoGuard Parent App</h1>
+          <h1 className="text-2xl font-bold">Welcome to GoGuard</h1>
           <p className="mt-2 text-muted-foreground">
-            Enter the 6-digit code sent to your phone/email to access{" "}
-            <span className="font-medium">your child's status</span>.
+            Your school emailed you a 6-digit code. Type it below to see{" "}
+            <span className="font-medium">your children</span>. This is only needed on a phone
+            that hasn't opened the app before.
           </p>
         </div>
 
@@ -146,7 +193,7 @@ function ParentOtpGate() {
             className="w-full"
             disabled={busy || otp.length < 6}
           >
-            {busy ? <Loader2 className="animate-spin mr-2 size-4" /> : "Verify & Continue"}
+            {busy ? <Loader2 className="animate-spin mr-2 size-4" /> : "Open my children"}
           </Button>
 
           <Button
@@ -162,21 +209,25 @@ function ParentOtpGate() {
               </>
             ) : (
               <>
-                <RefreshCw className="mr-2 size-4" /> Resend Code
+                <RefreshCw className="mr-2 size-4" /> Email me a new code
               </>
             )}
           </Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            Didn't receive a code? Check your spam folder or request a new one above.
+            No email yet? Give it a minute, then check your spam folder. You can also ask the school
+            office to send the link again.
           </p>
         </form>
 
         <div className="mt-8 rounded-xl border bg-muted/50 p-4 text-sm text-center">
-          <p className="font-medium">First time here?</p>
+          <p className="font-medium">About your code</p>
           <p className="mt-1 text-muted-foreground">
-            This link is unique to your child. The code expires in 30 minutes. After verifying, you
-            can add this app to your home screen for instant access.
+            This link is yours as a guardian. Every child you registered with the school appears in
+            the app. The code works for 30 minutes. Once you've opened the app on this phone it
+            stays signed in, so you won't need a code again. On a new phone, come back to this link
+            and ask for a fresh code. After the first visit you can add the app to your home screen
+            and it opens straight to your children.
           </p>
         </div>
       </div>

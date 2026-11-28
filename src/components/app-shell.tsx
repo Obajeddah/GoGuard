@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -10,10 +10,12 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  Menu,
   ScanLine,
   Settings,
   UserCog,
   Users,
+  X,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +49,22 @@ export function AppShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = termsFor(me?.org?.type);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // The menu is a side panel, so it never sits on top of the page content.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [menuOpen]);
 
   const nav: { to: AppPage; label: string; icon: typeof LayoutDashboard }[] = [
     { to: "/dashboard", label: "Live", icon: LayoutDashboard },
@@ -81,10 +99,7 @@ export function AppShell({
 
   return (
     <div
-      className={cn(
-        "min-h-screen pb-24 md:pb-0",
-        tone === "dark" && "dark bg-background text-foreground",
-      )}
+      className={cn("min-h-screen", tone === "dark" && "dark bg-background text-foreground")}
     >
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
@@ -99,23 +114,25 @@ export function AppShell({
             </div>
           )}
           {branch.canSwitch && (
-            <Select
-              value={branch.branchId ?? "all"}
-              onValueChange={(v) => setSelectedBranch(v === "all" ? null : v)}
-            >
-              <SelectTrigger className="h-9 w-auto min-w-36 max-w-48 gap-1.5" aria-label="Branch">
-                <Building2 className="size-4 shrink-0 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All branches</SelectItem>
-                {branch.branches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="hidden md:block">
+              <Select
+                value={branch.branchId ?? "all"}
+                onValueChange={(v) => setSelectedBranch(v === "all" ? null : v)}
+              >
+                <SelectTrigger className="h-9 w-auto min-w-36 max-w-48 gap-1.5" aria-label="Branch">
+                  <Building2 className="size-4 shrink-0 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All branches</SelectItem>
+                  {branch.branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           <nav className="ml-auto hidden items-center gap-1 md:flex">
             {visible.map((n) => (
@@ -138,8 +155,100 @@ export function AppShell({
           >
             <LogOut /> <span className="hidden sm:inline">Sign out</span>
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            aria-controls="app-menu"
+          >
+            <Menu />
+          </Button>
         </div>
       </header>
+
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+          />
+          <aside
+            id="app-menu"
+            aria-label="Main menu"
+            className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col border-r bg-background shadow-2xl"
+          >
+            <div className="flex h-16 items-center justify-between border-b px-4">
+              <Brand to="/dashboard" />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close menu"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X />
+              </Button>
+            </div>
+            {me?.org && (
+              <div className="border-b px-4 py-3 leading-tight">
+                <p className="truncate text-sm font-medium">{me.org.name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {roleLabel}
+                  {me.branchId && branch.multi && ` · ${branch.nameOf(me.branchId)}`}
+                </p>
+              </div>
+            )}
+            {branch.canSwitch && (
+              <div className="border-b px-4 py-3">
+                <label
+                  htmlFor="menu-branch"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  Campus
+                </label>
+                <select
+                  id="menu-branch"
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={branch.branchId ?? "all"}
+                  onChange={(e) =>
+                    setSelectedBranch(e.target.value === "all" ? null : e.target.value)
+                  }
+                >
+                  <option value="all">All branches</option>
+                  {branch.branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+              {visible.map((n) => (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                  activeProps={{ className: "bg-secondary text-foreground" }}
+                >
+                  <n.icon className="size-5 shrink-0" />
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="border-t p-3">
+              <Button variant="ghost" className="w-full justify-start" onClick={signOut}>
+                <LogOut /> Sign out
+              </Button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       <main className="mx-auto max-w-6xl px-4 py-6">
         {isLoading ? (
@@ -195,29 +304,6 @@ export function AppShell({
         )}
       </main>
 
-      {visible.length > 1 && (
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-          <div
-            className="mx-auto grid max-w-md"
-            style={{ gridTemplateColumns: `repeat(${visible.length}, 1fr)` }}
-          >
-            {visible.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={cn(
-                  "flex min-w-0 flex-col items-center gap-1 py-2.5 font-medium text-muted-foreground",
-                  visible.length > 6 ? "text-[10px]" : "text-[11px]",
-                )}
-                activeProps={{ className: "text-primary" }}
-              >
-                <n.icon className="size-5" />
-                <span className="max-w-full truncate">{n.label}</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
-      )}
     </div>
   );
 }
